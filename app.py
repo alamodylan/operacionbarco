@@ -55,6 +55,7 @@ def create_app():
 
 # 🔹 Crear usuario admin automáticamente si no existe
     with app.app_context():
+        db.create_all()
         if not Usuario.query.first():
             from werkzeug.security import generate_password_hash
             admin = Usuario(
