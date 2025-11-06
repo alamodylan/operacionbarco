@@ -73,3 +73,9 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     app.run(host="0.0.0.0", port=5000, debug=True)
+with app.app_context():
+    # 🔧 Eliminar la tabla vieja
+    db.drop_all()
+    # 🔧 Crear las tablas nuevas con las columnas correctas
+    db.create_all()
+    print("✅ Base de datos regenerada con la estructura actual.")
