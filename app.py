@@ -1,6 +1,6 @@
-# app.py
 from flask import Flask, render_template
 from flask_login import LoginManager, login_required, current_user
+from datetime import timedelta
 from config import Config
 from models.base import db
 from models.usuario import Usuario, bcrypt  # bcrypt importado del modelo
@@ -17,14 +17,20 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # 🔒 Configuración de duración de sesión
+    app.permanent_session_lifetime = timedelta(minutes=30)
+
     # Inicialización de extensiones
     db.init_app(app)
     bcrypt.init_app(app)
 
     # Configuración del Login Manager
     login_manager = LoginManager()
-    login_manager.login_view = "auth_bp.login"  # 🔧 corregido
+    login_manager.login_view = "auth_bp.login"  # vista de login del blueprint
     login_manager.login_message = "Por favor, inicia sesión para continuar."
+    login_manager.refresh_view = "auth_bp.login"  # redirigir al login si expira
+    login_manager.needs_refresh_message = "Tu sesión ha expirado. Vuelve a iniciar sesión."
+    login_manager.needs_refresh_message_category = "info"
     login_manager.init_app(app)
 
     @login_manager.user_loader
@@ -69,13 +75,11 @@ def create_app():
     return app
 
 
-# 🔹 Ejecución local (solo se ejecuta en tu PC, no en Render)
+# 🔹 Ejecución local (solo en tu PC, no en Render)
 if __name__ == "__main__":
     app = create_app()
     app.run(host="0.0.0.0", port=5000, debug=True)
     with app.app_context():
-        # 🔧 Eliminar la tabla vieja
         db.drop_all()
-        # 🔧 Crear las tablas nuevas con las columnas correctas
         db.create_all()
         print("✅ Base de datos regenerada con la estructura actual.")
