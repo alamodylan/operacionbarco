@@ -33,10 +33,23 @@ def create_app():
 
     # Registro de Blueprints
     app.register_blueprint(auth_bp)
-    app.register_blueprint(placa_bp, url_prefix="/api/placas")
-    app.register_blueprint(operacion_bp, url_prefix="/api/operaciones")
-    app.register_blueprint(movimiento_bp, url_prefix="/api/movimientos")
-    app.register_blueprint(notificacion_bp, url_prefix="/api/notificaciones")
+    app.register_blueprint(placa_bp)
+    app.register_blueprint(operacion_bp)
+    app.register_blueprint(movimiento_bp)
+    app.register_blueprint(notificacion_bp)
+
+    # 🔹 Crear tablas y usuario admin solo una vez (seguro para Render)
+    with app.app_context():
+        db.create_all()
+        if not Usuario.query.first():
+            admin = Usuario(
+                nombre="Dylan Bustos",
+                email="italamo@alamoterminales.com"
+            )
+            admin.set_password("atm4261")
+            db.session.add(admin)
+            db.session.commit()
+            print("✅ Usuario administrador creado automáticamente.")
 
     # Página principal (dashboard protegido)
     @app.route("/")
@@ -53,26 +66,10 @@ def create_app():
     def internal_error(e):
         return render_template("500.html"), 500
 
-# 🔹 Crear usuario admin automáticamente si no existe
-    with app.app_context():
-        db.create_all()
-        if not Usuario.query.first():
-            from werkzeug.security import generate_password_hash
-            admin = Usuario(
-                usuario="Dylan Bustos",
-                correo="italamo@alamoterminales.com",
-                password=generate_password_hash("atm4261")
-            )
-            db.session.add(admin)
-            db.session.commit()
-            print("✅ Usuario administrador creado automáticamente.")
     return app
 
 
-# Ejecución local
+# 🔹 Ejecución local (solo se ejecuta en tu PC, no en Render)
 if __name__ == "__main__":
     app = create_app()
-    with app.app_context():
-        # Solo para desarrollo (no usar en Render)
-        db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)
