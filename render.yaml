@@ -2,6 +2,7 @@ services:
   - type: web
     name: operacionbarco
     env: python
+    rootDir: .
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: gunicorn "app:create_app()"
     envVars:
@@ -12,4 +13,3 @@ services:
       - key: DATABASE_URL
         sync: false
     plan: free
-    rootDir: .
