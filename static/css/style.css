@@ -1,0 +1,101 @@
+/* === Estilo General === */
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f3f4f6;
+    color: #333;
+}
+
+/* === Barra de navegación === */
+.navbar {
+    background-color: #003366;
+    color: white;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar a {
+    color: white;
+    text-decoration: none;
+    margin: 0 12px;
+    transition: color 0.2s ease-in-out;
+}
+
+.navbar a:hover {
+    color: #ffcc00;
+}
+
+/* === Formularios y contenedores === */
+form {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+input, select, textarea, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+button {
+    background-color: #003366;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+button:hover {
+    background-color: #00509e;
+}
+
+/* === Alertas personalizadas (compatibles con flash Bootstrap) === */
+.alert {
+    border-radius: 8px;
+    margin: 15px auto;
+    max-width: 600px;
+    padding: 10px 15px;
+}
+
+.alert.success,
+.alert.alert-success { background-color: #4CAF50; color: #fff; }
+
+.alert.danger,
+.alert.alert-danger { background-color: #f44336; color: #fff; }
+
+.alert.warning,
+.alert.alert-warning { background-color: #ff9800; color: #fff; }
+
+.alert.info,
+.alert.alert-info { background-color: #2196f3; color: #fff; }
+
+/* === Tarjetas y tablas === */
+.card {
+    border-radius: 12px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.table {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* === Pie de página opcional === */
+footer {
+    background-color: #003366;
+    color: white;
+    text-align: center;
+    padding: 10px 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    font-size: 0.9em;
+}

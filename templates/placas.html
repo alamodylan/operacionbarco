@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Gestión de Placas{% endblock %}
+{% block content %}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">🚛 Placas registradas</h2>
+    </div>
+
+    <!-- Formulario para agregar nueva placa -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('placa_bp.nueva_placa') }}" class="row g-2">
+                <div class="col-md-9">
+                    <input type="text" name="numero_placa" class="form-control" placeholder="Ej: ABC123" required>
+                </div>
+                <div class="col-md-3 d-grid">
+                    <button type="submit" class="btn btn-primary">Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de placas -->
+    {% if placas %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle shadow-sm">
+            <thead class="table-primary">
+                <tr>
+                    <th>ID</th>
+                    <th>Número de placa</th>
+                    <th>Propietario</th>
+                    <th>Estado</th>
+                    <th>Fecha de registro</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for placa in placas %}
+                <tr>
+                    <td>{{ placa.id }}</td>
+                    <td class="fw-bold">{{ placa.numero_placa }}</td>
+                    <td>{{ placa.propietario or '—' }}</td>
+                    <td>
+                        {% if placa.estado == 'activa' %}
+                            <span class="badge bg-success">Activa</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ placa.estado }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center mt-4">
+        No hay placas registradas aún.
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

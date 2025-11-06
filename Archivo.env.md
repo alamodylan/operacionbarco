@@ -1,0 +1,2 @@
+SECRET_KEY=clave_super_segura_123
+DATABASE_URL=postgresql://citasatm_user:SlwK1sFIPJal7m8KaDtlRlYu1NseKxnV@dpg-ctdis2jv2p9s73ai7op0-a.oregon-postgres.render.com/citasatm_db

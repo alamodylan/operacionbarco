@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Historial de Operaciones{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="fw-bold mb-4">📈 Historial de operaciones completadas</h2>
+
+    {% if operaciones %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle shadow-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Placa</th>
+                    <th>Contenedor</th>
+                    <th>Hora de salida</th>
+                    <th>Hora de llegada</th>
+                    <th>Duración</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for op in operaciones %}
+                <tr>
+                    <td>{{ op.id }}</td>
+                    <td>{{ op.placa_obj.numero_placa }}</td>
+                    <td>{{ op.contenedor }}</td>
+                    <td>
+                        {% if op.hora_salida %}
+                            {{ op.hora_salida.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if op.hora_llegada %}
+                            {{ op.hora_llegada.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if op.hora_llegada and op.hora_salida %}
+                            {% set duracion = op.hora_llegada - op.hora_salida %}
+                            {% set horas = duracion.total_seconds() // 3600 %}
+                            {% set minutos = (duracion.total_seconds() % 3600) // 60 %}
+                            {{ '%02d:%02d horas' | format(horas, minutos) }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center mt-4">
+        No hay operaciones finalizadas registradas.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

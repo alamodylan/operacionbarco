@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: operacionbarco
+    env: python
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: gunicorn "app:create_app()"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6
+    plan: free

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Panel principal{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="text-center mb-4">
+        <h2 class="fw-bold">Bienvenido, {{ user.nombre }}</h2>
+        <p class="text-muted">Selecciona una opción del menú para continuar.</p>
+    </div>
+
+    <!-- Tarjetas de resumen -->
+    <div class="row g-4 justify-content-center">
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title text-primary fw-bold">🚛 Placas</h5>
+                    <p class="card-text text-muted">Gestiona las placas registradas.</p>
+                    <a href="{{ url_for('placa_bp.listar_placas') }}" class="btn btn-outline-primary btn-sm">Ver placas</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title text-success fw-bold">📦 Operaciones</h5>
+                    <p class="card-text text-muted">Controla las salidas y llegadas.</p>
+                    <a href="{{ url_for('operacion_bp.historial_operaciones') }}" class="btn btn-outline-success btn-sm">Ver historial</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title text-warning fw-bold">📋 Movimientos</h5>
+                    <p class="card-text text-muted">Consulta los movimientos intermedios.</p>
+                    <a href="{{ url_for('movimiento_bp.listar_movimientos') }}" class="btn btn-outline-warning btn-sm">Ver movimientos</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

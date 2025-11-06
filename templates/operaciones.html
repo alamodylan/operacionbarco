@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Operaciones{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">📦 Operaciones activas</h2>
+    </div>
+
+    <!-- Formulario para registrar nueva operación -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('operacion_bp.registrar_salida') }}" class="row g-2">
+                <div class="col-md-5">
+                    <input type="text" name="placa" class="form-control" placeholder="Número de placa (ej: ABC123)" required>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="contenedor" class="form-control" placeholder="Número de contenedor (ej: MSCU1234567)" required>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary">Registrar salida</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de operaciones activas -->
+    {% if operaciones %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle shadow-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Placa</th>
+                    <th>Contenedor</th>
+                    <th>Hora salida</th>
+                    <th>Hora llegada</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for op in operaciones %}
+                <tr>
+                    <td>{{ op.id }}</td>
+                    <td>{{ op.placa_obj.numero_placa }}</td>
+                    <td>{{ op.contenedor }}</td>
+                    <td>{{ op.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        {% if op.hora_llegada %}
+                            {{ op.hora_llegada.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if op.estado == 'EN_RUTA' %}
+                            <span class="badge bg-warning text-dark">En ruta</span>
+                        {% elif op.estado == 'FINALIZADA' %}
+                            <span class="badge bg-success">Finalizada</span>
+                        {% elif op.estado == 'ALERTA' %}
+                            <span class="badge bg-danger">⚠️ Alerta</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ op.estado }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if op.estado == 'EN_RUTA' %}
+                        <form method="POST" action="{{ url_for('operacion_bp.registrar_llegada', id=op.id) }}">
+                            <button type="submit" class="btn btn-success btn-sm">Marcar llegada</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center mt-4">
+        No hay operaciones registradas actualmente.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

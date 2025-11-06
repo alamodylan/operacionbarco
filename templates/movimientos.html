@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Historial de Movimientos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="fw-bold mb-4">📋 Historial de movimientos</h2>
+
+    {% if movimientos %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle shadow-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Placa</th>
+                    <th>Contenedor</th>
+                    <th>Hora salida</th>
+                    <th>Hora llegada</th>
+                    <th>Registró salida</th>
+                    <th>Registró llegada</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in movimientos %}
+                <tr>
+                    <td>{{ m.id }}</td>
+                    <td>{{ m.placa.numero_placa }}</td>
+                    <td>{{ m.numero_contenedor }}</td>
+                    <td>{{ m.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        {% if m.hora_llegada %}
+                            {{ m.hora_llegada.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            <span class="text-muted">Pendiente</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ m.usuario_salida.nombre if m.usuario_salida else '—' }}</td>
+                    <td>{{ m.usuario_llegada.nombre if m.usuario_llegada else '—' }}</td>
+                    <td>
+                        {% if m.estado == 'EN_TRANSITO' %}
+                            <span class="badge bg-warning text-dark">En tránsito</span>
+                        {% elif m.estado == 'FINALIZADO' %}
+                            <span class="badge bg-success">Finalizado</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ m.estado }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center mt-4">
+        No hay movimientos registrados.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
