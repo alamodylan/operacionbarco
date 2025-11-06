@@ -11,8 +11,11 @@
     <div class="card mb-4 shadow-sm">
         <div class="card-body">
             <form method="POST" action="{{ url_for('placa_bp.nueva_placa') }}" class="row g-2">
-                <div class="col-md-9">
+                <div class="col-md-5">
                     <input type="text" name="numero_placa" class="form-control" placeholder="Ej: ABC123" required>
+                </div>
+                <div class="col-md-4">
+                    <input type="text" name="propietario" class="form-control" placeholder="Propietario (opcional)">
                 </div>
                 <div class="col-md-3 d-grid">
                     <button type="submit" class="btn btn-primary">Agregar</button>
@@ -32,6 +35,7 @@
                     <th>Propietario</th>
                     <th>Estado</th>
                     <th>Fecha de registro</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -48,6 +52,21 @@
                         {% endif %}
                     </td>
                     <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('placa_bp.toggle_estado', placa_id=placa.id) }}" style="display:inline;">
+                            {% if placa.estado == 'activa' %}
+                                <button type="submit" class="btn btn-sm btn-warning"
+                                    onclick="return confirm('¿Seguro que deseas desactivar esta placa?');">
+                                    Desactivar
+                                </button>
+                            {% else %}
+                                <button type="submit" class="btn btn-sm btn-success"
+                                    onclick="return confirm('¿Seguro que deseas activar esta placa?');">
+                                    Activar
+                                </button>
+                            {% endif %}
+                        </form>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

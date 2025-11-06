@@ -17,7 +17,7 @@ def login():
         if user and user.check_password(password):
             login_user(user)
             flash(f"Bienvenido, {user.nombre}", "success")
-            return redirect(url_for("operacion_bp.dashboard"))  # redirige al dashboard de operaciones
+            return redirect(url_for('dashboard'))  # redirige al dashboard de operaciones
         else:
             flash("Correo o contraseña incorrectos", "danger")
 
