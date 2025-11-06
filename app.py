@@ -23,7 +23,7 @@ def create_app():
 
     # Configuración del Login Manager
     login_manager = LoginManager()
-    login_manager.login_view = "auth.login"
+    login_manager.login_view = "auth_bp.login"  # 🔧 corregido
     login_manager.login_message = "Por favor, inicia sesión para continuar."
     login_manager.init_app(app)
 
