@@ -53,6 +53,18 @@ def create_app():
     def internal_error(e):
         return render_template("500.html"), 500
 
+# 🔹 Crear usuario admin automáticamente si no existe
+    with app.app_context():
+        if not Usuario.query.first():
+            from werkzeug.security import generate_password_hash
+            admin = Usuario(
+                usuario="Dylan Bustos",
+                correo="italamo@alamoterminales.com",
+                password=generate_password_hash("atm4261")
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print("✅ Usuario administrador creado automáticamente.")
     return app
 
 
