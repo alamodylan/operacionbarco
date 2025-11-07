@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from datetime import datetime
 from models.base import db
-from models.operacion import OperacionBarco
+from models.operacion import Operacion
 from models.movimiento import MovimientoBarco
 from models.placa import Placa
 from models.notificacion import enviar_notificacion
@@ -20,9 +20,9 @@ operacion_bp = Blueprint("operacion_bp", __name__, url_prefix="/operaciones")
 def listar_operaciones():
     try:
         operaciones = (
-            OperacionBarco.query
+            Operacion.query
             .filter_by(estado="en_proceso")
-            .order_by(OperacionBarco.fecha_creacion.desc())
+            .order_by(Operacion.fecha_creacion.desc())
             .all()
         )
         return render_template("operaciones.html", operaciones=operaciones)
@@ -44,7 +44,7 @@ def nueva_operacion():
             flash("Debe ingresar el nombre de la operación (barco).", "warning")
             return redirect(url_for("operacion_bp.listar_operaciones"))
 
-        nueva = OperacionBarco(nombre=nombre.strip())
+        nueva = Operacion(nombre=nombre.strip())
         db.session.add(nueva)
         db.session.commit()
 
@@ -63,7 +63,7 @@ def nueva_operacion():
 @login_required
 def detalle_operacion(operacion_id):
     try:
-        operacion = OperacionBarco.query.get_or_404(operacion_id)
+        operacion = Operacion.query.get_or_404(operacion_id)
         placas_activas = (
             Placa.query.filter_by(estado="activa")
             .order_by(Placa.numero.asc())
@@ -154,7 +154,7 @@ def finalizar_movimiento(movimiento_id):
 @login_required
 def finalizar_operacion(operacion_id):
     try:
-        operacion = OperacionBarco.query.get_or_404(operacion_id)
+        operacion = Operacion.query.get_or_404(operacion_id)
 
         if operacion.finalizar():
             db.session.commit()
