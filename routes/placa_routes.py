@@ -34,8 +34,9 @@ def nueva_placa():
             flash("Esta placa ya está registrada.", "danger")
             return redirect(url_for("placa_bp.listar_placas"))
 
+        # ✅ Campo corregido
         nueva = Placa(
-            numero=numero_placa.upper().strip(),
+            numero_placa=numero_placa.upper().strip(),
             propietario=propietario,
             usuario_id=current_user.id if current_user else None
         )
@@ -49,7 +50,8 @@ def nueva_placa():
         current_app.logger.exception(f"Error al agregar placa: {e}")
         flash("Error al registrar la placa.", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
-    
+
+# ---- Activar / Desactivar placa ----
 @placa_bp.route("/toggle/<int:placa_id>", methods=["POST"])
 @login_required
 def toggle_estado(placa_id):
@@ -57,7 +59,7 @@ def toggle_estado(placa_id):
         placa = Placa.query.get_or_404(placa_id)
 
         # Cambiar el estado
-        if placa.estado == "activa":
+        if placa.estado.lower() == "activa":
             placa.estado = "inactiva"
         else:
             placa.estado = "activa"
