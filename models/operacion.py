@@ -4,13 +4,14 @@ from models.base import db
 
 class Operacion(db.Model):
     __tablename__ = "operaciones"
+    __table_args__ = {"schema": "operacionbarco"}  # 👈 Indica que pertenece al schema correcto
 
     id = db.Column(db.Integer, primary_key=True)
-    
+
     # Relación con la tabla de placas
-    placa_id = db.Column(db.Integer, db.ForeignKey("placas.id"), nullable=False)
+    placa_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.placas.id"), nullable=False)
     placa_obj = db.relationship("Placa", backref=db.backref("operaciones", lazy=True))
-    
+
     contenedor = db.Column(db.String(20), nullable=False)
     hora_salida = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     hora_llegada = db.Column(db.DateTime, nullable=True)

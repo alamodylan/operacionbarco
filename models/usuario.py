@@ -7,6 +7,7 @@ bcrypt = Bcrypt()
 
 class Usuario(UserMixin, db.Model):
     __tablename__ = "usuarios"
+    __table_args__ = {"schema": "operacionbarco"}  # 👈 Esto asegura que se cree en el schema correcto
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)

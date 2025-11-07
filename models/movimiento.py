@@ -4,12 +4,13 @@ from models.base import db
 
 class Movimiento(db.Model):
     __tablename__ = "movimientos"
+    __table_args__ = {"schema": "operacionbarco"}  # 👈 importante
 
     id = db.Column(db.Integer, primary_key=True)
 
     # Relaciones principales
-    operacion_id = db.Column(db.Integer, db.ForeignKey("operaciones.id"), nullable=False)
-    placa_id = db.Column(db.Integer, db.ForeignKey("placas.id"), nullable=False)
+    operacion_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.operaciones.id"), nullable=False)
+    placa_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.placas.id"), nullable=False)
     numero_contenedor = db.Column(db.String(50), nullable=False)
 
     # Tiempos de movimiento
@@ -17,8 +18,8 @@ class Movimiento(db.Model):
     hora_llegada = db.Column(db.DateTime, nullable=True)
 
     # Usuarios que registran la salida y llegada
-    usuario_salida_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)
-    usuario_llegada_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)
+    usuario_salida_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.usuarios.id"), nullable=True)
+    usuario_llegada_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.usuarios.id"), nullable=True)
 
     # Estado actual del movimiento
     estado = db.Column(db.String(20), default="EN_TRANSITO", nullable=False)

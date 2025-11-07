@@ -14,22 +14,35 @@ def enviar_notificacion(mensaje: str) -> bool:
         apikey = current_app.config.get("CALLMEBOT_API_KEY")
 
         if not telefono or not apikey:
-            current_app.logger.warning("⚠️ Faltan variables de entorno para WhatsApp (WHATSAPP_PHONE o CALLMEBOT_API_KEY).")
+            current_app.logger.warning(
+                "⚠️ Faltan variables de entorno: WHATSAPP_PHONE o CALLMEBOT_API_KEY."
+            )
             return False
 
-        # Codificamos el texto para evitar errores con espacios o emojis
+        # Sanitiza y codifica el mensaje
+        mensaje = mensaje.strip()
         mensaje_codificado = quote_plus(mensaje)
 
-        url = f"https://api.callmebot.com/whatsapp.php?phone={telefono}&text={mensaje_codificado}&apikey={apikey}"
+        url = (
+            f"https://api.callmebot.com/whatsapp.php?"
+            f"phone={telefono}&text={mensaje_codificado}&apikey={apikey}"
+        )
+
+        # Petición al servicio CallMeBot
         response = requests.get(url, timeout=10)
 
         if response.status_code == 200:
             current_app.logger.info(f"✅ Notificación enviada por WhatsApp: {mensaje}")
             return True
         else:
-            current_app.logger.error(f"⚠️ Error al enviar notificación: {response.status_code}")
+            current_app.logger.error(
+                f"⚠️ Error al enviar notificación: {response.status_code} - {response.text}"
+            )
             return False
 
+    except requests.Timeout:
+        current_app.logger.error("❌ Timeout al intentar enviar la notificación por WhatsApp.")
+        return False
     except Exception as e:
-        current_app.logger.exception(f"❌ Error al conectar con CallMeBot: {e}")
+        current_app.logger.exception(f"❌ Error inesperado al enviar la notificación: {e}")
         return False
