@@ -13,16 +13,24 @@ class Operacion(db.Model):
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     estado = db.Column(db.String(20), default="en_proceso", nullable=False)
 
-    # Relación 1:N con los movimientos (cada placa/contenedor pertenece a una operación)
+    # ========================================================
+    # 🔗 Relación 1:N con los movimientos
+    # ========================================================
     movimientos = db.relationship(
-        "MovimientoBarco",  # 👈 se cambió para apuntar al modelo real del otro archivo
+        "MovimientoBarco",  # Modelo definido en movimiento.py
         backref="operacion",
         lazy=True,
         cascade="all, delete-orphan"
     )
 
+    # ========================================================
+    # ⚙️ Métodos de control
+    # ========================================================
     def finalizar(self):
-        """Finaliza la operación solo si todos los movimientos están cerrados."""
+        """
+        Finaliza la operación solo si todos los movimientos están cerrados.
+        Retorna True si se pudo finalizar, False si aún hay movimientos abiertos.
+        """
         if all(m.estado == "finalizado" for m in self.movimientos) and self.movimientos:
             self.estado = "finalizada"
             return True
