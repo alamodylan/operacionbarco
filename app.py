@@ -78,8 +78,22 @@ def create_app():
 # 🔹 Ejecución local (solo en tu PC, no en Render)
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=5000, debug=True)
     with app.app_context():
+        print("🧹 Eliminando base de datos vieja...")
         db.drop_all()
+        print("🧱 Creando base de datos nueva...")
         db.create_all()
-        print("✅ Base de datos regenerada con la estructura actual.")
+        print("✅ Estructura actualizada correctamente.")
+
+        # Crear usuario administrador automáticamente
+        if not Usuario.query.first():
+            admin = Usuario(
+                nombre="Dylan Bustos",
+                email="italamo@alamoterminales.com"
+            )
+            admin.set_password("atm4261")
+            db.session.add(admin)
+            db.session.commit()
+            print("✅ Usuario administrador creado automáticamente.")
+
+    app.run(host="0.0.0.0", port=5000, debug=True)
