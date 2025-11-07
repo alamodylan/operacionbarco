@@ -57,37 +57,44 @@ def nueva_operacion():
         return redirect(url_for("operacion_bp.listar_operaciones"))
 
 # ------------------------------------------------------------
-# 🔍 3️⃣ Ver detalles de una operación en proceso
+# 🔍 3️⃣ Ver detalles de una operación
 # ------------------------------------------------------------
 @operacion_bp.route("/detalle/<int:operacion_id>", methods=["GET"])
 @login_required
 def detalle_operacion(operacion_id):
     try:
         operacion = Operacion.query.get_or_404(operacion_id)
+
+        # ✅ Cargar placas activas
         placas_activas = (
-            Placa.query.filter_by(estado="Activa")  # 👈 coincide con el default del modelo
+            Placa.query
+            .filter_by(estado="Activa")  # asegúrate que coincida con la BD
             .order_by(Placa.numero_placa.asc())
             .all()
         )
+
+        # ✅ Cargar movimientos asociados a esta operación
         movimientos = (
             MovimientoBarco.query
             .filter_by(operacion_id=operacion.id)
             .order_by(MovimientoBarco.id.desc())
             .all()
         )
+
         return render_template(
             "operacion_detalle.html",
             operacion=operacion,
             placas=placas_activas,
-            movimientos=movimientos,
+            movimientos=movimientos  # 👈 se usa la variable real
         )
+
     except Exception as e:
         current_app.logger.exception(f"Error al cargar detalles de operación: {e}")
         flash("No se pudo cargar la operación.", "danger")
         return redirect(url_for("operacion_bp.listar_operaciones"))
 
 # ------------------------------------------------------------
-# 🚛 4️⃣ Agregar placa + contenedor a la operación
+# 🚛 4️⃣ Agregar movimiento
 # ------------------------------------------------------------
 @operacion_bp.route("/agregar_movimiento/<int:operacion_id>", methods=["POST"])
 @login_required
@@ -111,16 +118,17 @@ def agregar_movimiento(operacion_id):
         db.session.add(nuevo_mov)
         db.session.commit()
 
-        # ✅ Enviar notificación por WhatsApp
+        # 🔔 Notificación
+        placa = Placa.query.get(placa_id)
         mensaje = (
             f"🚛 Nueva salida registrada:\n"
-            f"Placa: {nuevo_mov.placa_id}\n"
+            f"Placa: {placa.numero_placa}\n"
             f"Contenedor: {nuevo_mov.contenedor}\n"
             f"Hora: {nuevo_mov.hora_salida.strftime('%H:%M %d/%m/%Y')}"
         )
         enviar_notificacion(mensaje)
 
-        flash(f"Movimiento agregado y notificación enviada para contenedor {contenedor}.", "success")
+        flash(f"Movimiento agregado correctamente para el contenedor {contenedor}.", "success")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
     except Exception as e:

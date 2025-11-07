@@ -37,7 +37,7 @@
                     <select name="placa_id" class="form-select" required>
                         <option value="">Seleccionar placa activa...</option>
                         {% for placa in placas %}
-                        <option value="{{ placa.id }}">{{ placa.numero }}</option>
+                        <option value="{{ placa.id }}">{{ placa.numero_placa }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -72,7 +72,7 @@
                     {% for mov in movimientos %}
                     <tr>
                         <td>{{ loop.index }}</td>
-                        <td>{{ mov.placa.numero }}</td>
+                        <td>{{ mov.placa.numero_placa }}</td>
                         <td>{{ mov.contenedor }}</td>
                         <td>{{ mov.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
                         <td>
