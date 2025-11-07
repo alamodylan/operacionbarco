@@ -6,7 +6,7 @@ class Placa(db.Model):
     __table_args__ = {"schema": "operacionbarco"}  # 👈 Asegura que se cree en el schema correcto
 
     id = db.Column(db.Integer, primary_key=True)
-    numero = db.Column(db.String(20), unique=True, nullable=False)
+    numero_placa = db.Column(db.String(20), unique=True, nullable=False)
     propietario = db.Column(db.String(100))
     estado = db.Column(db.String(20), default="Activa")
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
@@ -16,4 +16,4 @@ class Placa(db.Model):
     usuario = db.relationship("Usuario", backref=db.backref("placas", lazy=True))
 
     def __repr__(self):
-        return f"<Placa {self.numero} - Estado: {self.estado}>"
+        return f"<Placa {self.numero_placa} - Estado: {self.estado}>"
