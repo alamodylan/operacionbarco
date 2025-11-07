@@ -1,58 +1,75 @@
 {% extends "base.html" %}
-{% block title %}Historial de Movimientos{% endblock %}
+{% block title %}Movimientos Finalizados{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2 class="fw-bold mb-4">📋 Historial de movimientos</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">📋 Operaciones finalizadas</h2>
+    </div>
 
-    {% if movimientos %}
-    <div class="table-responsive">
-        <table class="table table-hover align-middle shadow-sm">
-            <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>Placa</th>
-                    <th>Contenedor</th>
-                    <th>Hora salida</th>
-                    <th>Hora llegada</th>
-                    <th>Registró salida</th>
-                    <th>Registró llegada</th>
-                    <th>Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for m in movimientos %}
-                <tr>
-                    <td>{{ m.id }}</td>
-                    <td>{{ m.placa.numero_placa }}</td>
-                    <td>{{ m.numero_contenedor }}</td>
-                    <td>{{ m.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
-                    <td>
-                        {% if m.hora_llegada %}
-                            {{ m.hora_llegada.strftime('%d/%m/%Y %H:%M') }}
-                        {% else %}
-                            <span class="text-muted">Pendiente</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ m.usuario_salida.nombre if m.usuario_salida else '—' }}</td>
-                    <td>{{ m.usuario_llegada.nombre if m.usuario_llegada else '—' }}</td>
-                    <td>
-                        {% if m.estado == 'EN_TRANSITO' %}
-                            <span class="badge bg-warning text-dark">En tránsito</span>
-                        {% elif m.estado == 'FINALIZADO' %}
-                            <span class="badge bg-success">Finalizado</span>
-                        {% else %}
-                            <span class="badge bg-secondary">{{ m.estado }}</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    {% if operaciones %}
+    <div class="accordion" id="accordionOperaciones">
+        {% for op in operaciones %}
+        <div class="accordion-item shadow-sm mb-2">
+            <h2 class="accordion-header" id="heading{{ op.id }}">
+                <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ op.id }}" aria-expanded="false" aria-controls="collapse{{ op.id }}">
+                    ⚓ {{ op.nombre }} — Finalizada el {{ op.fecha_creacion.strftime('%d/%m/%Y') }}
+                </button>
+            </h2>
+            <div id="collapse{{ op.id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ op.id }}" data-bs-parent="#accordionOperaciones">
+                <div class="accordion-body">
+                    {% if op.movimientos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Placa</th>
+                                    <th>Contenedor</th>
+                                    <th>Hora salida</th>
+                                    <th>Hora llegada</th>
+                                    <th>Duración total</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mov in op.movimientos %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ mov.placa.numero }}</td>
+                                    <td>{{ mov.contenedor }}</td>
+                                    <td>{{ mov.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>{{ mov.hora_llegada.strftime('%d/%m/%Y %H:%M') if mov.hora_llegada else '—' }}</td>
+                                    <td>
+                                        {% if mov.hora_llegada %}
+                                            {{ mov.tiempo_total(formato=True) }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if mov.estado == 'finalizado' %}
+                                            <span class="badge bg-success">Finalizado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ mov.estado }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No hay movimientos registrados en esta operación.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
     {% else %}
     <div class="alert alert-info text-center mt-4">
-        No hay movimientos registrados.
+        No hay operaciones finalizadas disponibles.
     </div>
     {% endif %}
 </div>

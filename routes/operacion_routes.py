@@ -1,104 +1,170 @@
-# routes/operacion_routes.py
-from flask import Blueprint, request, jsonify, render_template, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask_login import login_required, current_user
 from datetime import datetime
-import threading, time
-from models.notificacion import enviar_notificacion
-from models.operacion import Operacion
-from models.placa import Placa
 from models.base import db
+from models.operacion import OperacionBarco
+from models.movimiento import MovimientoBarco
+from models.placa import Placa
+from models.notificacion import enviar_notificacion
 
-operacion_bp = Blueprint("operacion_bp", __name__)
+# ============================================================
+# 🟦 BLUEPRINT DE OPERACIONES DE BARCO
+# ============================================================
+operacion_bp = Blueprint("operacion_bp", __name__, url_prefix="/operaciones")
 
-# ---- Función interna que espera 15 minutos y revisa el estado ----
-def verificar_llegada(operacion_id, placa_codigo, contenedor):
-    """Hilo que espera 15 min y envía alerta si la operación no ha sido finalizada."""
+# ------------------------------------------------------------
+# 📄 1️⃣ Listar operaciones en proceso
+# ------------------------------------------------------------
+@operacion_bp.route("/", methods=["GET"])
+@login_required
+def listar_operaciones():
     try:
-        time.sleep(900)  # 900 segundos = 15 minutos
-        with current_app.app_context():
-            operacion = Operacion.query.get(operacion_id)
-            if operacion and operacion.estado == "EN_RUTA" and not operacion.alerta_enviada:
-                operacion.estado = "ALERTA"
-                operacion.alerta_enviada = True
-                db.session.commit()
-                mensaje = (
-                    f"⚠️ Cabezal {placa_codigo} con contenedor {contenedor} "
-                    "NO HA LLEGADO A SU DESTINO EN EL TIEMPO LÍMITE."
-                )
-                enviar_notificacion(mensaje)
+        operaciones = (
+            OperacionBarco.query
+            .filter_by(estado="en_proceso")
+            .order_by(OperacionBarco.fecha_creacion.desc())
+            .all()
+        )
+        return render_template("operaciones.html", operaciones=operaciones)
     except Exception as e:
-        current_app.logger.exception(f"Error en verificación de llegada: {e}")
+        current_app.logger.exception(f"Error al listar operaciones: {e}")
+        flash("Ocurrió un error al cargar las operaciones activas.", "danger")
+        return render_template("operaciones.html", operaciones=[])
 
-# ---- Ruta para registrar salida ----
-@operacion_bp.route("/operacion/salida", methods=["POST"])
-def registrar_salida():
+# ------------------------------------------------------------
+# ➕ 2️⃣ Crear nueva operación de barco
+# ------------------------------------------------------------
+@operacion_bp.route("/nueva", methods=["POST"])
+@login_required
+def nueva_operacion():
     try:
-        data = request.get_json()
-        placa_codigo = data.get("placa")
-        contenedor = data.get("contenedor")
+        nombre = request.form.get("nombre")
 
-        if not placa_codigo or not contenedor:
-            return jsonify({"error": "Datos incompletos"}), 400
+        if not nombre:
+            flash("Debe ingresar el nombre de la operación (barco).", "warning")
+            return redirect(url_for("operacion_bp.listar_operaciones"))
 
-        placa = Placa.query.filter_by(numero_placa=placa_codigo).first()
-        if not placa:
-            return jsonify({"error": f"La placa {placa_codigo} no existe"}), 404
+        nueva = OperacionBarco(nombre=nombre.strip())
+        db.session.add(nueva)
+        db.session.commit()
 
-        nueva_operacion = Operacion(
-            placa_id=placa.id,
-            contenedor=contenedor,
+        flash(f"Operación '{nombre}' creada exitosamente.", "success")
+        return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=nueva.id))
+
+    except Exception as e:
+        current_app.logger.exception(f"Error al crear operación: {e}")
+        flash("Error al crear la operación.", "danger")
+        return redirect(url_for("operacion_bp.listar_operaciones"))
+
+# ------------------------------------------------------------
+# 🔍 3️⃣ Ver detalles de una operación en proceso
+# ------------------------------------------------------------
+@operacion_bp.route("/detalle/<int:operacion_id>", methods=["GET"])
+@login_required
+def detalle_operacion(operacion_id):
+    try:
+        operacion = OperacionBarco.query.get_or_404(operacion_id)
+        placas_activas = (
+            Placa.query.filter_by(estado="activa")
+            .order_by(Placa.numero.asc())
+            .all()
+        )
+        movimientos = (
+            MovimientoBarco.query
+            .filter_by(operacion_id=operacion.id)
+            .order_by(MovimientoBarco.id.desc())
+            .all()
+        )
+        return render_template(
+            "operacion_detalle.html",
+            operacion=operacion,
+            placas=placas_activas,
+            movimientos=movimientos,
+        )
+    except Exception as e:
+        current_app.logger.exception(f"Error al cargar detalles de operación: {e}")
+        flash("No se pudo cargar la operación.", "danger")
+        return redirect(url_for("operacion_bp.listar_operaciones"))
+
+# ------------------------------------------------------------
+# 🚛 4️⃣ Agregar placa + contenedor a la operación
+# ------------------------------------------------------------
+@operacion_bp.route("/agregar_movimiento/<int:operacion_id>", methods=["POST"])
+@login_required
+def agregar_movimiento(operacion_id):
+    try:
+        placa_id = request.form.get("placa_id")
+        contenedor = request.form.get("contenedor")
+
+        if not placa_id or not contenedor:
+            flash("Debe seleccionar una placa activa y escribir el número de contenedor.", "warning")
+            return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
+
+        nuevo_mov = MovimientoBarco(
+            operacion_id=operacion_id,
+            placa_id=placa_id,
+            contenedor=contenedor.strip().upper(),
             hora_salida=datetime.utcnow(),
-            estado="EN_RUTA"
+            estado="en_ruta"
         )
 
-        db.session.add(nueva_operacion)
+        db.session.add(nuevo_mov)
         db.session.commit()
 
+        # ✅ Enviar notificación por WhatsApp
         mensaje = (
-            f"🚛 Cabezal {placa_codigo} sale de muelle con contenedor "
-            f"{contenedor} a las {nueva_operacion.hora_salida.strftime('%H:%M:%S')} UTC."
+            f"🚛 Nueva salida registrada:\n"
+            f"Placa: {nuevo_mov.placa_id}\n"
+            f"Contenedor: {nuevo_mov.contenedor}\n"
+            f"Hora: {nuevo_mov.hora_salida.strftime('%H:%M %d/%m/%Y')}"
         )
         enviar_notificacion(mensaje)
 
-        # Lanzar hilo de monitoreo (15 minutos)
-        hilo = threading.Thread(target=verificar_llegada, args=(nueva_operacion.id, placa_codigo, contenedor))
-        hilo.daemon = True
-        hilo.start()
-
-        return jsonify({"mensaje": "Salida registrada y monitoreo iniciado"}), 201
+        flash(f"Movimiento agregado y notificación enviada para contenedor {contenedor}.", "success")
+        return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
     except Exception as e:
-        current_app.logger.exception(f"Error al registrar salida: {e}")
-        return jsonify({"error": "Error interno al registrar salida"}), 500
+        current_app.logger.exception(f"Error al agregar movimiento: {e}")
+        flash("Error al agregar movimiento.", "danger")
+        return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
-# ---- Ruta para registrar llegada ----
-@operacion_bp.route("/operacion/llegada/<int:id>", methods=["POST"])
-def registrar_llegada(id):
+# ------------------------------------------------------------
+# 🏁 5️⃣ Finalizar un movimiento
+# ------------------------------------------------------------
+@operacion_bp.route("/finalizar_movimiento/<int:movimiento_id>", methods=["POST"])
+@login_required
+def finalizar_movimiento(movimiento_id):
     try:
-        operacion = Operacion.query.get(id)
-        if not operacion:
-            return jsonify({"error": "Operación no encontrada"}), 404
-
-        if operacion.estado == "FINALIZADA":
-            return jsonify({"mensaje": "La operación ya estaba finalizada"}), 200
-
-        operacion.finalizar()
+        mov = MovimientoBarco.query.get_or_404(movimiento_id)
+        mov.finalizar()
         db.session.commit()
 
-        placa_codigo = operacion.placa_obj.numero_placa
-        mensaje = (
-            f"✅ Cabezal {placa_codigo} ingresa a predio con contenedor "
-            f"{operacion.contenedor} correctamente a las {operacion.hora_llegada.strftime('%H:%M:%S')} UTC."
-        )
-        enviar_notificacion(mensaje)
-
-        return jsonify({"mensaje": "Llegada registrada correctamente"}), 200
+        flash(f"Movimiento {mov.contenedor} finalizado correctamente.", "success")
+        return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=mov.operacion_id))
 
     except Exception as e:
-        current_app.logger.exception(f"Error al registrar llegada: {e}")
-        return jsonify({"error": "Error interno al registrar llegada"}), 500
+        current_app.logger.exception(f"Error al finalizar movimiento: {e}")
+        flash("Error al finalizar movimiento.", "danger")
+        return redirect(url_for("operacion_bp.listar_operaciones"))
 
-# ---- Ruta: Historial de operaciones ----
-@operacion_bp.route("/historial")
-def historial_operaciones():
-    operaciones = Operacion.query.filter_by(estado="FINALIZADA").order_by(Operacion.hora_llegada.desc()).all()
-    return render_template("historial.html", operaciones=operaciones)
+# ------------------------------------------------------------
+# ⛔ 6️⃣ Finalizar toda la operación
+# ------------------------------------------------------------
+@operacion_bp.route("/finalizar_operacion/<int:operacion_id>", methods=["POST"])
+@login_required
+def finalizar_operacion(operacion_id):
+    try:
+        operacion = OperacionBarco.query.get_or_404(operacion_id)
+
+        if operacion.finalizar():
+            db.session.commit()
+            flash(f"La operación '{operacion.nombre}' fue finalizada correctamente.", "success")
+        else:
+            flash("No se puede finalizar. Hay movimientos aún en tránsito.", "warning")
+
+        return redirect(url_for("operacion_bp.listar_operaciones"))
+
+    except Exception as e:
+        current_app.logger.exception(f"Error al finalizar operación: {e}")
+        flash("Error al finalizar la operación.", "danger")
+        return redirect(url_for("operacion_bp.listar_operaciones"))

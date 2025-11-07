@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Detalle Operación{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">⚓ Detalle de Operación: {{ operacion.nombre }}</h2>
+        <form action="{{ url_for('operacion_bp.finalizar_operacion', operacion_id=operacion.id) }}" method="POST">
+            <button type="submit" class="btn btn-success">
+                Finalizar operación
+            </button>
+        </form>
+    </div>
+
+    <p class="text-muted">
+        Creada el {{ operacion.fecha_creacion.strftime('%d/%m/%Y %H:%M') }} |
+        Estado:
+        {% if operacion.estado == 'en_proceso' %}
+            <span class="badge bg-warning text-dark">En proceso</span>
+        {% elif operacion.estado == 'finalizada' %}
+            <span class="badge bg-success">Finalizada</span>
+        {% else %}
+            <span class="badge bg-secondary">{{ operacion.estado }}</span>
+        {% endif %}
+    </p>
+
+    <hr>
+
+    <!-- Formulario para agregar un nuevo movimiento -->
+    {% if operacion.estado == 'en_proceso' %}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title mb-3 fw-bold">🚛 Agregar movimiento</h5>
+            <form method="POST" action="{{ url_for('operacion_bp.agregar_movimiento', operacion_id=operacion.id) }}" class="row g-2">
+                <div class="col-md-4">
+                    <select name="placa_id" class="form-select" required>
+                        <option value="">Seleccionar placa activa...</option>
+                        {% for placa in placas %}
+                        <option value="{{ placa.id }}">{{ placa.numero }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <input type="text" name="contenedor" class="form-control" placeholder="Número de contenedor (ej: MSCU1234567)" required>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary">Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabla de movimientos -->
+    <div class="table-responsive shadow-sm">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Placa</th>
+                    <th>Contenedor</th>
+                    <th>Hora salida</th>
+                    <th>Hora llegada</th>
+                    <th>Duración</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if movimientos %}
+                    {% for mov in movimientos %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ mov.placa.numero }}</td>
+                        <td>{{ mov.contenedor }}</td>
+                        <td>{{ mov.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>
+                            {% if mov.hora_llegada %}
+                                {{ mov.hora_llegada.strftime('%d/%m/%Y %H:%M') }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if mov.hora_llegada %}
+                                {{ mov.tiempo_total(formato=True) }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if mov.estado == 'en_ruta' %}
+                                <span class="badge bg-warning text-dark">En ruta</span>
+                            {% elif mov.estado == 'finalizado' %}
+                                <span class="badge bg-success">Finalizado</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ mov.estado }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if mov.estado == 'en_ruta' %}
+                            <form method="POST" action="{{ url_for('operacion_bp.finalizar_movimiento', movimiento_id=mov.id) }}">
+                                <button type="submit" class="btn btn-sm btn-success">Finalizar</button>
+                            </form>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">No hay movimientos registrados en esta operación.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <a href="{{ url_for('operacion_bp.listar_operaciones') }}" class="btn btn-outline-secondary mt-3">← Volver a Operaciones</a>
+</div>
+{% endblock %}

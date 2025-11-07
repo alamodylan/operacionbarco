@@ -4,37 +4,22 @@
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="fw-bold">📦 Operaciones activas</h2>
-    </div>
-
-    <!-- Formulario para registrar nueva operación -->
-    <div class="card mb-4 shadow-sm">
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('operacion_bp.registrar_salida') }}" class="row g-2">
-                <div class="col-md-5">
-                    <input type="text" name="placa" class="form-control" placeholder="Número de placa (ej: ABC123)" required>
-                </div>
-                <div class="col-md-5">
-                    <input type="text" name="contenedor" class="form-control" placeholder="Número de contenedor (ej: MSCU1234567)" required>
-                </div>
-                <div class="col-md-2 d-grid">
-                    <button type="submit" class="btn btn-primary">Registrar salida</button>
-                </div>
-            </form>
-        </div>
+        <h2 class="fw-bold">⚓ Operaciones de barco en proceso</h2>
+        <!-- Botón para abrir modal de nueva operación -->
+        <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevaOperacion">
+            ➕ Nueva operación
+        </button>
     </div>
 
     <!-- Tabla de operaciones activas -->
     {% if operaciones %}
-    <div class="table-responsive">
-        <table class="table table-hover align-middle shadow-sm">
+    <div class="table-responsive shadow-sm">
+        <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
                     <th>ID</th>
-                    <th>Placa</th>
-                    <th>Contenedor</th>
-                    <th>Hora salida</th>
-                    <th>Hora llegada</th>
+                    <th>Nombre del Barco</th>
+                    <th>Fecha de Creación</th>
                     <th>Estado</th>
                     <th>Acción</th>
                 </tr>
@@ -43,34 +28,25 @@
                 {% for op in operaciones %}
                 <tr>
                     <td>{{ op.id }}</td>
-                    <td>{{ op.placa_obj.numero_placa }}</td>
-                    <td>{{ op.contenedor }}</td>
-                    <td>{{ op.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td class="fw-semibold">{{ op.nombre }}</td>
+                    <td>{{ op.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</td>
                     <td>
-                        {% if op.hora_llegada %}
-                            {{ op.hora_llegada.strftime('%d/%m/%Y %H:%M') }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if op.estado == 'EN_RUTA' %}
-                            <span class="badge bg-warning text-dark">En ruta</span>
-                        {% elif op.estado == 'FINALIZADA' %}
+                        {% if op.estado == 'en_proceso' %}
+                            <span class="badge bg-warning text-dark">En proceso</span>
+                        {% elif op.estado == 'finalizada' %}
                             <span class="badge bg-success">Finalizada</span>
-                        {% elif op.estado == 'ALERTA' %}
-                            <span class="badge bg-danger">⚠️ Alerta</span>
                         {% else %}
                             <span class="badge bg-secondary">{{ op.estado }}</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if op.estado == 'EN_RUTA' %}
-                        <form method="POST" action="{{ url_for('operacion_bp.registrar_llegada', id=op.id) }}">
-                            <button type="submit" class="btn btn-success btn-sm">Marcar llegada</button>
+                        <a href="{{ url_for('operacion_bp.detalle_operacion', operacion_id=op.id) }}" class="btn btn-sm btn-primary">
+                            Ver detalles
+                        </a>
+                        {% if op.estado == 'en_proceso' %}
+                        <form action="{{ url_for('operacion_bp.finalizar_operacion', operacion_id=op.id) }}" method="POST" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-success">Finalizar</button>
                         </form>
-                        {% else %}
-                        <span class="text-muted">—</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -80,8 +56,32 @@
     </div>
     {% else %}
     <div class="alert alert-info text-center mt-4">
-        No hay operaciones registradas actualmente.
+        No hay operaciones de barco activas actualmente.
     </div>
     {% endif %}
+</div>
+
+<!-- Modal para crear nueva operación -->
+<div class="modal fade" id="modalNuevaOperacion" tabindex="-1" aria-labelledby="modalNuevaOperacionLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalNuevaOperacionLabel">➕ Nueva Operación de Barco</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="POST" action="{{ url_for('operacion_bp.nueva_operacion') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre del barco u operación</label>
+                        <input type="text" name="nombre" id="nombre" class="form-control" placeholder="Ejemplo: MSC AURORA" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear operación</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -1,38 +1,49 @@
-# models/movimiento.py
 from datetime import datetime
 from models.base import db
 
-class Movimiento(db.Model):
-    __tablename__ = "movimientos"
-    __table_args__ = {"schema": "operacionbarco"}  # 👈 importante
+# ============================================================
+# 🟩 MODELO: Movimiento dentro de una operación de barco
+# ============================================================
+class MovimientoBarco(db.Model):
+    __tablename__ = "movimientos_barco"
+    __table_args__ = {"schema": "operacionbarco"}
 
     id = db.Column(db.Integer, primary_key=True)
-
-    # Relaciones principales
-    operacion_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.operaciones.id"), nullable=False)
-    placa_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.placas.id"), nullable=False)
-    numero_contenedor = db.Column(db.String(50), nullable=False)
-
-    # Tiempos de movimiento
-    hora_salida = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    operacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("operacionbarco.operaciones_barco.id"),
+        nullable=False
+    )
+    placa_id = db.Column(
+        db.Integer,
+        db.ForeignKey("operacionbarco.placas.id"),
+        nullable=False
+    )
+    contenedor = db.Column(db.String(50), nullable=False)
+    hora_salida = db.Column(db.DateTime, default=datetime.utcnow)
     hora_llegada = db.Column(db.DateTime, nullable=True)
+    estado = db.Column(db.String(20), default="en_ruta")
 
-    # Usuarios que registran la salida y llegada
-    usuario_salida_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.usuarios.id"), nullable=True)
-    usuario_llegada_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.usuarios.id"), nullable=True)
+    # ========================================================
+    # 🕒 Métodos de utilidad
+    # ========================================================
+    def finalizar(self):
+        """Marca el movimiento como finalizado y registra la hora de llegada."""
+        self.hora_llegada = datetime.utcnow()
+        self.estado = "finalizado"
 
-    # Estado actual del movimiento
-    estado = db.Column(db.String(20), default="EN_TRANSITO", nullable=False)
-
-    # Relaciones ORM
-    operacion = db.relationship("Operacion", backref=db.backref("movimientos", lazy=True))
-    placa = db.relationship("Placa", backref=db.backref("movimientos", lazy=True))
-    usuario_salida = db.relationship(
-        "Usuario", foreign_keys=[usuario_salida_id], backref=db.backref("movimientos_salida", lazy=True)
-    )
-    usuario_llegada = db.relationship(
-        "Usuario", foreign_keys=[usuario_llegada_id], backref=db.backref("movimientos_llegada", lazy=True)
-    )
+    def tiempo_total(self, formato=False):
+        """
+        Devuelve el tiempo total del viaje.
+        Si formato=True, devuelve un texto como 'Xh Ym'.
+        """
+        if self.hora_llegada:
+            total_min = int((self.hora_llegada - self.hora_salida).total_seconds() / 60)
+            if formato:
+                horas, minutos = divmod(total_min, 60)
+                return f"{horas}h {minutos}m"
+            return total_min
+        return None
 
     def __repr__(self):
-        return f"<Movimiento {self.numero_contenedor} - Estado: {self.estado}>"
+        return f"<Movimiento {self.contenedor} - {self.estado}>"
