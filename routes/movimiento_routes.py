@@ -1,10 +1,9 @@
 # routes/movimiento_routes.py
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, flash, jsonify, current_app
 from flask_login import login_required
 from models.base import db
 from models.movimiento import MovimientoBarco
 from models.operacion import Operacion
-from models.placa import Placa
 from datetime import datetime
 
 movimiento_bp = Blueprint("movimiento_bp", __name__)
@@ -23,28 +22,6 @@ def listar_movimientos():
             .order_by(Operacion.fecha_creacion.desc())
             .all()
         )
-        return render_template("movimientos.html", operaciones=operaciones)
-    except Exception as e:
-        current_app.logger.exception(f"Error al listar movimientos: {e}")
-        flash("Ocurrió un error al cargar los movimientos.", "danger")
-        return render_template("movimientos.html", operaciones=[])
-
-# ============================================================
-# 🚛 REGISTRAR NUEVO MOVIMIENTO (si se usa fuera del detalle)
-# ============================================================
-# routes/movimiento_routes.py
-@movimiento_bp.route("/", methods=["GET"])
-@login_required
-def listar_movimientos():
-    try:
-        # Obtener solo las operaciones finalizadas
-        operaciones = (
-            Operacion.query
-            .filter_by(estado="finalizada")
-            .order_by(Operacion.fecha_creacion.desc())
-            .all()
-        )
-
         return render_template("movimientos.html", operaciones=operaciones)
     except Exception as e:
         current_app.logger.exception(f"Error al listar movimientos: {e}")
