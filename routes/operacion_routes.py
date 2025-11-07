@@ -65,8 +65,8 @@ def detalle_operacion(operacion_id):
     try:
         operacion = Operacion.query.get_or_404(operacion_id)
         placas_activas = (
-            Placa.query.filter_by(estado="activa")
-            .order_by(Placa.numero.asc())
+            Placa.query.filter_by(estado="Activa")  # 👈 coincide con el default del modelo
+            .order_by(Placa.numero_placa.asc())
             .all()
         )
         movimientos = (
