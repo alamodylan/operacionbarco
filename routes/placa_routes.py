@@ -30,7 +30,7 @@ def nueva_placa():
             return redirect(url_for("placa_bp.listar_placas"))
 
         # Verificar duplicados
-        if Placa.query.filter_by(numero=numero_placa.upper().strip()).first():
+        if Placa.query.filter_by(numero_placa=numero_placa.upper().strip()).first():
             flash("Esta placa ya está registrada.", "danger")
             return redirect(url_for("placa_bp.listar_placas"))
 
