@@ -79,14 +79,11 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     with app.app_context():
-        print("🧹 Eliminando base de datos vieja...")
-        db.drop_all()
-        print("🧱 Creando base de datos nueva...")
+        print("🧱 Verificando estructura de base de datos...")
         db.create_all()
-        print("✅ Estructura actualizada correctamente.")
 
-        # Crear usuario administrador automáticamente
-        if not Usuario.query.first():
+        # Crear usuario administrador automáticamente (solo si no existe)
+        if not Usuario.query.filter_by(email="italamo@alamoterminales.com").first():
             admin = Usuario(
                 nombre="Dylan Bustos",
                 email="italamo@alamoterminales.com"
@@ -95,5 +92,7 @@ if __name__ == "__main__":
             db.session.add(admin)
             db.session.commit()
             print("✅ Usuario administrador creado automáticamente.")
+        else:
+            print("ℹ️ Usuario administrador ya existe.")
 
     app.run(host="0.0.0.0", port=5000, debug=True)
