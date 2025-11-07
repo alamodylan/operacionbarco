@@ -32,8 +32,8 @@
                 <tr>
                     <th>ID</th>
                     <th>Número de placa</th>
-                    <th>Propietario</th>
-                    <th>Estado</th>
+                    <th>Chofer</th>
+                    <th>Registrado por</th>
                     <th>Fecha de registro</th>
                     <th>Acciones</th>
                 </tr>
@@ -44,27 +44,14 @@
                     <td>{{ placa.id }}</td>
                     <td class="fw-bold">{{ placa.numero_placa }}</td>
                     <td>{{ placa.propietario or '—' }}</td>
-                    <td>
-                        {% if placa.estado == 'activa' %}
-                            <span class="badge bg-success">Activa</span>
-                        {% else %}
-                            <span class="badge bg-secondary">{{ placa.estado }}</span>
-                        {% endif %}
-                    </td>
+                    <td>{{ placa.usuario.username if placa.usuario else '—' }}</td>
                     <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
                     <td>
-                        <form method="POST" action="{{ url_for('placa_bp.toggle_estado', placa_id=placa.id) }}" style="display:inline;">
-                            {% if placa.estado == 'activa' %}
-                                <button type="submit" class="btn btn-sm btn-warning"
-                                    onclick="return confirm('¿Seguro que deseas desactivar esta placa?');">
-                                    Desactivar
-                                </button>
-                            {% else %}
-                                <button type="submit" class="btn btn-sm btn-success"
-                                    onclick="return confirm('¿Seguro que deseas activar esta placa?');">
-                                    Activar
-                                </button>
-                            {% endif %}
+                        <form method="POST" action="{{ url_for('placa_bp.eliminar_placa', placa_id=placa.id) }}">
+                        <button type="submit" class="btn btn-danger btn-sm"
+                                onclick="return confirm('¿Seguro que deseas eliminar esta placa?');">
+                            Eliminar
+                        </button>
                         </form>
                     </td>
                 </tr>

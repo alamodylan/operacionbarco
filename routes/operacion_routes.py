@@ -66,9 +66,8 @@ def detalle_operacion(operacion_id):
         operacion = Operacion.query.get_or_404(operacion_id)
 
         # ✅ Cargar placas activas
-        placas_activas = (
+        placas_disponibles = (
             Placa.query
-            .filter_by(estado="Activa")  # asegúrate que coincida con la BD
             .order_by(Placa.numero_placa.asc())
             .all()
         )
@@ -84,7 +83,7 @@ def detalle_operacion(operacion_id):
         return render_template(
             "operacion_detalle.html",
             operacion=operacion,
-            placas=placas_activas,
+            placas=placas_disponibles,
             movimientos=movimientos  # 👈 se usa la variable real
         )
 
