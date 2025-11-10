@@ -31,7 +31,7 @@ class MovimientoBarco(db.Model):
 
     # Campos de movimiento
     contenedor = db.Column(db.String(50), nullable=False)
-    hora_salida = db.Column(db.DateTime, default=lambda: datetime.now(CR_TZ))  # ✅ hora local CR
+    hora_salida = db.Column(db.DateTime, default=lambda: datetime.now(CR_TZ).replace(tzinfo=None))  # ✅ hora local CR sin tzinfo
     hora_llegada = db.Column(db.DateTime, nullable=True)
     estado = db.Column(db.String(20), default="en_ruta")
 
@@ -45,7 +45,7 @@ class MovimientoBarco(db.Model):
     # ========================================================
     def finalizar(self):
         """Marca el movimiento como finalizado y registra la hora de llegada."""
-        self.hora_llegada = datetime.now(CR_TZ)  # ✅ hora local CR
+        self.hora_llegada = datetime.now(CR_TZ).replace(tzinfo=None)  # ✅ hora local CR sin tzinfo
         self.estado = "finalizado"
 
     def tiempo_total(self, formato=False):

@@ -15,7 +15,7 @@ class Operacion(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
-    fecha_creacion = db.Column(db.DateTime, default=lambda: datetime.now(CR_TZ))  # ✅ Hora local CR
+    fecha_creacion = db.Column(db.DateTime, default=lambda: datetime.now(CR_TZ).replace(tzinfo=None))  # ✅ Hora local CR sin tzinfo
     estado = db.Column(db.String(20), default="en_proceso", nullable=False)
 
     # ========================================================

@@ -4,20 +4,25 @@ from flask_login import UserMixin
 from flask_bcrypt import Bcrypt
 from datetime import datetime
 import pytz
+
+# Zona horaria de Costa Rica
 CR_TZ = pytz.timezone("America/Costa_Rica")
 
 bcrypt = Bcrypt()
 
 class Usuario(UserMixin, db.Model):
     __tablename__ = "usuarios"
-    __table_args__ = {"schema": "operacionbarco"}  # 👈 Usa tu mismo esquema
+    __table_args__ = {"schema": "operacionbarco"}  # Usa el mismo schema
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    rol = db.Column(db.String(20), default="Usuario")  # 👈 Nuevo campo: Admin / Usuario
-    fecha_creacion = db.Column(db.DateTime, default=lambda: datetime.now(CR_TZ).replace(tzinfo=None)),
+    rol = db.Column(db.String(20), default="Usuario")  # Admin / Usuario
+    fecha_creacion = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(CR_TZ).replace(tzinfo=None)
+    )
 
     def __repr__(self):
         return f"<Usuario {self.nombre} ({self.rol})>"

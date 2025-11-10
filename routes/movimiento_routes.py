@@ -44,7 +44,8 @@ def registrar_llegada_movimiento(id):
         if movimiento.estado == "finalizado":
             return jsonify({"mensaje": "El movimiento ya fue finalizado"}), 200
 
-        movimiento.hora_llegada = lambda: datetime.now(CR_TZ).replace(tzinfo=None),
+        # ✅ Hora correcta de Costa Rica
+        movimiento.hora_llegada = datetime.now(CR_TZ).replace(tzinfo=None)
         movimiento.estado = "finalizado"
         db.session.commit()
 

@@ -7,7 +7,7 @@ from models.movimiento import MovimientoBarco
 from models.placa import Placa
 from models.notificacion import enviar_notificacion
 import pytz
-from datetime import datetime
+
 CR_TZ = pytz.timezone("America/Costa_Rica")
 
 # ============================================================
@@ -47,7 +47,10 @@ def nueva_operacion():
             flash("Debe ingresar el nombre de la operación (barco).", "warning")
             return redirect(url_for("operacion_bp.listar_operaciones"))
 
-        nueva = Operacion(nombre=nombre.strip())
+        nueva = Operacion(
+            nombre=nombre.strip(),
+            fecha_creacion=datetime.now(CR_TZ).replace(tzinfo=None)
+        )
         db.session.add(nueva)
         db.session.commit()
 
@@ -71,7 +74,7 @@ def detalle_operacion(operacion_id):
         # ✅ Cargar solo placas activas
         placas_disponibles = (
             Placa.query
-            .filter(Placa.estado.ilike("activa"))  # 👈 muestra solo las activas (mayúsculas/minúsculas no importan)
+            .filter(Placa.estado.ilike("activa"))
             .order_by(Placa.numero_placa.asc())
             .all()
         )
@@ -114,7 +117,7 @@ def agregar_movimiento(operacion_id):
             operacion_id=operacion_id,
             placa_id=placa_id,
             contenedor=contenedor.strip().upper(),
-            hora_salida=lambda: datetime.now(CR_TZ).replace(tzinfo=None),
+            hora_salida=datetime.now(CR_TZ).replace(tzinfo=None),
             estado="en_ruta"
         )
 

@@ -13,7 +13,10 @@ class Placa(db.Model):
     numero_placa = db.Column(db.String(20), unique=True, nullable=False)
     propietario = db.Column(db.String(100))
     estado = db.Column(db.String(20), default="Activa")  # 👈 Mayúscula inicial estándar
-    fecha_registro = db.Column(db.DateTime, default=lambda: datetime.now(CR_TZ))  # ✅ Hora local CR
+    fecha_registro = db.Column(
+    db.DateTime,
+    default=lambda: datetime.now(CR_TZ).replace(tzinfo=None)
+)
 
     # 🔗 Relación con el usuario que registró la placa
     usuario_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.usuarios.id"), nullable=True)

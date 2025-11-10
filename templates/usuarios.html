@@ -37,7 +37,7 @@
                             </select>
                         </form>
                     </td>
-                    <td>{{ u.fecha_creacion.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ u.fecha_creacion.strftime('%d/%m/%Y') if u.fecha_creacion else '—' }}</td>
                     <td>
                         {% if current_user.id != u.id %}
                         <form method="POST" action="{{ url_for('usuario_bp.eliminar_usuario', id=u.id) }}" onsubmit="return confirm('¿Eliminar este usuario?')">
