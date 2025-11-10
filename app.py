@@ -11,7 +11,7 @@ from routes.placa_routes import placa_bp
 from routes.operacion_routes import operacion_bp
 from routes.movimiento_routes import movimiento_bp
 from routes.notificacion_routes import notificacion_bp
-
+from routes.usuario_routes import usuario_bp
 
 def create_app():
     app = Flask(__name__)
@@ -43,6 +43,7 @@ def create_app():
     app.register_blueprint(operacion_bp)
     app.register_blueprint(movimiento_bp)
     app.register_blueprint(notificacion_bp)
+    app.register_blueprint(usuario_bp)
 
     # 🔹 Crear tablas y usuario admin solo una vez (seguro para Render)
     with app.app_context():

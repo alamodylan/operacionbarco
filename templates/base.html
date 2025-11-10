@@ -64,6 +64,11 @@
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('notificacion_bp.check') }}">Notificaciones</a>
                     </li>
+                    {% if current_user.is_authenticated and current_user.rol == 'Admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('usuario_bp.listar_usuarios') }}">Usuarios</a>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('auth_bp.logout') }}">Salir</a>
                     </li>

@@ -1,37 +1,97 @@
 {% extends "base.html" %}
-{% block title %}Registrar nuevo usuario{% endblock %}
+{% block title %}Usuarios{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white text-center">
-                    <h4 class="mb-0">Registrar nuevo usuario</h4>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('auth_bp.register') }}">
-                        <div class="mb-3">
-                            <label for="nombre" class="form-label">Nombre completo</label>
-                            <input type="text" class="form-control" id="nombre" name="nombre" placeholder="Ej: Juan Pérez" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Correo electrónico</label>
-                            <input type="email" class="form-control" id="email" name="email" placeholder="correo@ejemplo.com" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Contraseña</label>
-                            <input type="password" class="form-control" id="password" name="password" placeholder="********" required>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-success">Registrar usuario</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer text-center small text-muted">
-                    🔐 Solo administradores pueden registrar nuevos usuarios
-                </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">👥 Gestión de usuarios</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+            ➕ Nuevo usuario
+        </button>
+    </div>
+
+    {% if usuarios %}
+    <div class="table-responsive shadow-sm">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Creado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td>{{ u.nombre }}</td>
+                    <td>{{ u.email }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('usuario_bp.cambiar_rol', id=u.id) }}" class="d-flex">
+                            <select name="rol" class="form-select form-select-sm me-2" onchange="this.form.submit()">
+                                <option value="Usuario" {% if u.rol == 'Usuario' %}selected{% endif %}>Usuario</option>
+                                <option value="Admin" {% if u.rol == 'Admin' %}selected{% endif %}>Admin</option>
+                            </select>
+                        </form>
+                    </td>
+                    <td>{{ u.fecha_creacion.strftime('%d/%m/%Y') }}</td>
+                    <td>
+                        {% if current_user.id != u.id %}
+                        <form method="POST" action="{{ url_for('usuario_bp.eliminar_usuario', id=u.id) }}" onsubmit="return confirm('¿Eliminar este usuario?')">
+                            <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center mt-4">No hay usuarios registrados.</div>
+    {% endif %}
+</div>
+
+<!-- Modal para crear nuevo usuario -->
+<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-labelledby="modalNuevoUsuarioLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalNuevoUsuarioLabel">➕ Nuevo usuario</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
+            <form method="POST" action="{{ url_for('usuario_bp.crear_usuario') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" name="nombre" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Correo electrónico</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rol</label>
+                        <select name="rol" class="form-select">
+                            <option value="Usuario">Usuario</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear usuario</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
