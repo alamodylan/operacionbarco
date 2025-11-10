@@ -4,6 +4,8 @@ from datetime import timedelta
 from config import Config
 from models.base import db
 from models.usuario import Usuario, bcrypt  # bcrypt importado del modelo
+import pytz
+from datetime import datetime
 
 # Importación de Blueprints
 from routes.auth_routes import auth_bp
@@ -75,6 +77,15 @@ def create_app():
 
     return app
 
+# =====================================================
+# 🌎 Definir zona horaria de Costa Rica
+# =====================================================
+CR_TZ = pytz.timezone("America/Costa_Rica")
+# Ahora podés usar datetime.now(CR_TZ) en toda la app
+
+# =====================================================
+# Inicialización de la app
+# =====================================================
 
 # 🔹 Ejecución local (solo en tu PC, no en Render)
 if __name__ == "__main__":

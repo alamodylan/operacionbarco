@@ -1,16 +1,21 @@
 from datetime import datetime
+import pytz
 from models.base import db
 
 # ============================================================
 # 🟦 MODELO PRINCIPAL: Operación de Barco
 # ============================================================
+
+# Zona horaria de Costa Rica
+CR_TZ = pytz.timezone("America/Costa_Rica")
+
 class Operacion(db.Model):
     __tablename__ = "operaciones_barco"
     __table_args__ = {"schema": "operacionbarco"}  # Schema correcto en PostgreSQL
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_creacion = db.Column(db.DateTime, default=lambda: datetime.now(CR_TZ))  # ✅ Hora local CR
     estado = db.Column(db.String(20), default="en_proceso", nullable=False)
 
     # ========================================================

@@ -1,9 +1,14 @@
 from datetime import datetime
+import pytz
 from models.base import db
 
 # ============================================================
 # 🟩 MODELO: Movimiento dentro de una operación de barco
 # ============================================================
+
+# Zona horaria de Costa Rica
+CR_TZ = pytz.timezone("America/Costa_Rica")
+
 class MovimientoBarco(db.Model):
     __tablename__ = "movimientos_barco"
     __table_args__ = {"schema": "operacionbarco"}
@@ -26,7 +31,7 @@ class MovimientoBarco(db.Model):
 
     # Campos de movimiento
     contenedor = db.Column(db.String(50), nullable=False)
-    hora_salida = db.Column(db.DateTime, default=datetime.utcnow)
+    hora_salida = db.Column(db.DateTime, default=lambda: datetime.now(CR_TZ))  # ✅ hora local CR
     hora_llegada = db.Column(db.DateTime, nullable=True)
     estado = db.Column(db.String(20), default="en_ruta")
 
@@ -40,7 +45,7 @@ class MovimientoBarco(db.Model):
     # ========================================================
     def finalizar(self):
         """Marca el movimiento como finalizado y registra la hora de llegada."""
-        self.hora_llegada = datetime.utcnow()
+        self.hora_llegada = datetime.now(CR_TZ)  # ✅ hora local CR
         self.estado = "finalizado"
 
     def tiempo_total(self, formato=False):
