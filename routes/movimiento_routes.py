@@ -5,6 +5,8 @@ from models.base import db
 from models.movimiento import MovimientoBarco
 from models.operacion import Operacion
 from datetime import datetime
+import pytz
+CR_TZ = pytz.timezone("America/Costa_Rica")
 
 movimiento_bp = Blueprint("movimiento_bp", __name__)
 
@@ -42,7 +44,7 @@ def registrar_llegada_movimiento(id):
         if movimiento.estado == "finalizado":
             return jsonify({"mensaje": "El movimiento ya fue finalizado"}), 200
 
-        movimiento.hora_llegada = datetime.utcnow()
+        movimiento.hora_llegada = lambda: datetime.now(CR_TZ).replace(tzinfo=None),
         movimiento.estado = "finalizado"
         db.session.commit()
 

@@ -6,6 +6,9 @@ from models.operacion import Operacion
 from models.movimiento import MovimientoBarco
 from models.placa import Placa
 from models.notificacion import enviar_notificacion
+import pytz
+from datetime import datetime
+CR_TZ = pytz.timezone("America/Costa_Rica")
 
 # ============================================================
 # 🟦 BLUEPRINT DE OPERACIONES DE BARCO
@@ -111,7 +114,7 @@ def agregar_movimiento(operacion_id):
             operacion_id=operacion_id,
             placa_id=placa_id,
             contenedor=contenedor.strip().upper(),
-            hora_salida=datetime.utcnow(),
+            hora_salida=lambda: datetime.now(CR_TZ).replace(tzinfo=None),
             estado="en_ruta"
         )
 

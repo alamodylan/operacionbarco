@@ -3,6 +3,8 @@ from models.base import db
 from flask_login import UserMixin
 from flask_bcrypt import Bcrypt
 from datetime import datetime
+import pytz
+CR_TZ = pytz.timezone("America/Costa_Rica")
 
 bcrypt = Bcrypt()
 
@@ -15,7 +17,7 @@ class Usuario(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     rol = db.Column(db.String(20), default="Usuario")  # 👈 Nuevo campo: Admin / Usuario
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_creacion = db.Column(db.DateTime, default=lambda: datetime.now(CR_TZ).replace(tzinfo=None)),
 
     def __repr__(self):
         return f"<Usuario {self.nombre} ({self.rol})>"
