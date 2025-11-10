@@ -65,9 +65,10 @@ def detalle_operacion(operacion_id):
     try:
         operacion = Operacion.query.get_or_404(operacion_id)
 
-        # ✅ Cargar placas activas
+        # ✅ Cargar solo placas activas
         placas_disponibles = (
             Placa.query
+            .filter(Placa.estado.ilike("activa"))  # 👈 muestra solo las activas (mayúsculas/minúsculas no importan)
             .order_by(Placa.numero_placa.asc())
             .all()
         )
@@ -84,7 +85,7 @@ def detalle_operacion(operacion_id):
             "operacion_detalle.html",
             operacion=operacion,
             placas=placas_disponibles,
-            movimientos=movimientos  # 👈 se usa la variable real
+            movimientos=movimientos
         )
 
     except Exception as e:

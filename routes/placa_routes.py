@@ -50,16 +50,24 @@ def nueva_placa():
         flash("Error al registrar la placa.", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
 
-# ---- Eliminar placa ----
-@placa_bp.route("/eliminar/<int:placa_id>", methods=["POST"])
+# ---- Cambiar estado (Activa / Inactiva) ----
+@placa_bp.route("/estado/<int:placa_id>", methods=["POST"])
 @login_required
-def eliminar_placa(placa_id):
+def cambiar_estado(placa_id):
     try:
         placa = Placa.query.get_or_404(placa_id)
-        db.session.delete(placa)
+        nuevo_estado = request.form.get("estado")
+
+        if nuevo_estado not in ["Activa", "Inactiva"]:
+            flash("Estado inválido.", "warning")
+            return redirect(url_for("placa_bp.listar_placas"))
+
+        placa.estado = nuevo_estado
         db.session.commit()
-        flash(f"Placa {placa.numero_placa} eliminada correctamente.", "success")
+
+        flash(f"Estado de la placa {placa.numero_placa} cambiado a {nuevo_estado}.", "info")
+        return redirect(url_for("placa_bp.listar_placas"))
     except Exception as e:
-        current_app.logger.exception(f"Error al eliminar placa: {e}")
-        flash("Error al eliminar la placa.", "danger")
-    return redirect(url_for("placa_bp.listar_placas"))
+        current_app.logger.exception(f"Error al cambiar estado de placa: {e}")
+        flash("Error al actualizar el estado de la placa.", "danger")
+        return redirect(url_for("placa_bp.listar_placas"))

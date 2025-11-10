@@ -35,7 +35,7 @@
                     <th>Chofer</th>
                     <th>Registrado por</th>
                     <th>Fecha de registro</th>
-                    <th>Acciones</th>
+                    <th>Estado</th>
                 </tr>
             </thead>
             <tbody>
@@ -44,14 +44,19 @@
                     <td>{{ placa.id }}</td>
                     <td class="fw-bold">{{ placa.numero_placa }}</td>
                     <td>{{ placa.propietario or '—' }}</td>
-                    <td>{{ placa.usuario.username if placa.usuario else '—' }}</td>
+
+                    <!-- ✅ Muestra correctamente el usuario -->
+                    <td>{{ placa.usuario.nombre if placa.usuario else '—' }}</td>
+
                     <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
+
+                    <!-- ✅ Select para cambiar estado -->
                     <td>
-                        <form method="POST" action="{{ url_for('placa_bp.eliminar_placa', placa_id=placa.id) }}">
-                        <button type="submit" class="btn btn-danger btn-sm"
-                                onclick="return confirm('¿Seguro que deseas eliminar esta placa?');">
-                            Eliminar
-                        </button>
+                        <form method="POST" action="{{ url_for('placa_bp.cambiar_estado', placa_id=placa.id) }}" class="d-flex align-items-center">
+                            <select name="estado" class="form-select form-select-sm me-2" onchange="this.form.submit()">
+                                <option value="Activa" {% if placa.estado == 'Activa' %}selected{% endif %}>Activa</option>
+                                <option value="Inactiva" {% if placa.estado == 'Inactiva' %}selected{% endif %}>Inactiva</option>
+                            </select>
                         </form>
                     </td>
                 </tr>
