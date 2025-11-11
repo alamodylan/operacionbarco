@@ -119,25 +119,45 @@ if __name__ == "__main__":
     def verificar_movimientos_periodicamente():
         """
         Hilo en segundo plano que revisa cada minuto si hay
-        movimientos activos de más de 15 minutos sin cerrar.
+        movimientos activos de más de 15 minutos sin cerrar
+        y reenvía alerta cada 4 minutos mientras siga abierto.
         """
+        ultima_alerta = {}  # Diccionario {movimiento_id: timestamp_última_alerta}
+
         while True:
             try:
                 with app.app_context():
                     ahora = datetime.now(CR_TZ)
                     movimientos = MovimientoBarco.query.filter_by(estado="en_ruta").all()
+
                     for mov in movimientos:
-                        if mov.hora_salida and (ahora - mov.hora_salida).total_seconds() > 900:
-                            mensaje = (
-                                f"🚨 *ALERTA DE RETRASO EN RUTA!*\n"
-                                f"🧱 Contenedor: {mov.contenedor}\n"
-                                f"🚛 Placa: {mov.placa.numero_placa}\n"
-                                f"👨‍🔧 Chofer: {mov.placa.propietario or 'Desconocido'}\n"
-                                f"🕒 Inicio: {mov.hora_salida.strftime('%H:%M %d/%m/%Y')}\n"
-                                f"⏱️ Tiempo transcurrido: "
-                                f"{int((ahora - mov.hora_salida).total_seconds() // 60)} minutos"
-                            )
-                            enviar_notificacion(mensaje)
+                        if not mov.hora_salida:
+                            continue
+
+                        minutos_transcurridos = (ahora - mov.hora_salida).total_seconds() / 60
+
+                        # ✅ Si pasaron más de 15 minutos
+                        if minutos_transcurridos >= 15:
+                            ultimo_envio = ultima_alerta.get(mov.id)
+                            # ✅ Solo reenvía si no ha enviado o pasaron 4 minutos desde la última alerta
+                            if not ultimo_envio or (ahora - ultimo_envio).total_seconds() >= 240:
+                                mensaje = (
+                                    f"🚨 *ALERTA DE RETRASO EN RUTA!*\n"
+                                    f"🧱 Contenedor: {mov.contenedor}\n"
+                                    f"🚛 Placa: {mov.placa.numero_placa}\n"
+                                    f"👨‍🔧 Chofer: {mov.placa.propietario or 'Desconocido'}\n"
+                                    f"🕒 Inicio: {mov.hora_salida.strftime('%H:%M %d/%m/%Y')}\n"
+                                    f"⏱️ Tiempo transcurrido: {int(minutos_transcurridos)} minutos"
+                                )
+                                enviar_notificacion(mensaje)
+                                ultima_alerta[mov.id] = ahora  # registra la hora del último envío
+
+                    # 🧹 Limpia movimientos cerrados del diccionario
+                    ids_activos = {mov.id for mov in movimientos}
+                    for mid in list(ultima_alerta.keys()):
+                        if mid not in ids_activos:
+                            ultima_alerta.pop(mid, None)
+
             except Exception as e:
                 app.logger.error(f"Error en verificación automática: {e}")
 
