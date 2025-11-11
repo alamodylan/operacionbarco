@@ -39,15 +39,20 @@
                             <span class="badge bg-secondary">{{ op.estado }}</span>
                         {% endif %}
                     </td>
-                    <td>
-                        <a href="{{ url_for('operacion_bp.detalle_operacion', operacion_id=op.id) }}" class="btn btn-sm btn-primary">
-                            Ver detalles
-                        </a>
-                        {% if op.estado == 'en_proceso' %}
-                        <form action="{{ url_for('operacion_bp.finalizar_operacion', operacion_id=op.id) }}" method="POST" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-success">Finalizar</button>
-                        </form>
-                        {% endif %}
+                    <td class="text-center">
+                        <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-2">
+                            <a href="{{ url_for('operacion_bp.detalle_operacion', operacion_id=op.id) }}"
+                               class="btn btn-primary btn-sm d-flex align-items-center gap-1">
+                               🔍 Ver detalles
+                            </a>
+                            {% if op.estado == 'en_proceso' %}
+                            <form action="{{ url_for('operacion_bp.finalizar_operacion', operacion_id=op.id) }}" method="POST" class="m-0">
+                                <button type="submit" class="btn btn-success btn-sm d-flex align-items-center gap-1">
+                                    ✅ Finalizar
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
