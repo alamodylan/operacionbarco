@@ -32,7 +32,7 @@ def listar_operaciones():
     except Exception as e:
         current_app.logger.exception(f"Error al listar operaciones: {e}")
         flash("Ocurrió un error al cargar las operaciones activas.", "danger")
-        return render_template("operaciones.html", operaciones=[])
+        return render_template("operaciones.html", operaciones=operaciones, rol=current_user.rol)
 
 # ------------------------------------------------------------
 # ➕ 2️⃣ Crear nueva operación de barco
