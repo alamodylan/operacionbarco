@@ -127,7 +127,7 @@ if __name__ == "__main__":
         while True:
             try:
                 with app.app_context():
-                    ahora = datetime.now(CR_TZ)
+                    ahora = datetime.now(CR_TZ).replace(tzinfo=None)
                     movimientos = MovimientoBarco.query.filter_by(estado="en_ruta").all()
                     print("⏱️ Verificando movimientos activos...", datetime.now(CR_TZ).strftime("%H:%M:%S %d/%m/%Y"))
 
