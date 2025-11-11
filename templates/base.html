@@ -35,6 +35,15 @@
                 transform: translateY(-10px);
             }
         }
+
+        /* Efecto hover para los enlaces del navbar */
+        .nav-link {
+            transition: color 0.3s, text-decoration 0.3s;
+        }
+        .nav-link:hover {
+            text-decoration: underline;
+            color: #fff !important;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -51,24 +60,30 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
+
+                    {% if current_user.is_authenticated and current_user.rol == 'Admin' %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('placa_bp.listar_placas') }}">Placas</a>
                     </li>
+                    {% endif %}
+
                     <li class="nav-item">
-                        <!-- ✅ Corrección de endpoint -->
                         <a class="nav-link text-white" href="{{ url_for('operacion_bp.listar_operaciones') }}">Operaciones</a>
                     </li>
+
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('movimiento_bp.listar_movimientos') }}">Movimientos</a>
                     </li>
+
+                    {% if current_user.is_authenticated and current_user.rol == 'Admin' %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('notificacion_bp.check') }}">Notificaciones</a>
                     </li>
-                    {% if current_user.is_authenticated and current_user.rol == 'Admin' %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('usuario_bp.listar_usuarios') }}">Usuarios</a>
                     </li>
                     {% endif %}
+
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('auth_bp.logout') }}">Salir</a>
                     </li>
@@ -101,10 +116,7 @@
 
     <!-- 🔒 Script para detectar sesión expirada -->
     <script>
-        // Si el usuario vuelve al sitio tras una sesión expirada,
-        // se le redirige automáticamente al login.
         window.addEventListener("pageshow", function (event) {
-            // Evita volver al dashboard con el botón "atrás"
             if (event.persisted || performance.getEntriesByType("navigation")[0].type === "back_forward") {
                 window.location.href = "{{ url_for('auth_bp.login') }}";
             }
