@@ -124,13 +124,14 @@ def agregar_movimiento(operacion_id):
         db.session.add(nuevo_mov)
         db.session.commit()
 
-        # 🔔 Notificación
+        # 🔔 Notificación de inicio de viaje
         placa = Placa.query.get(placa_id)
         mensaje = (
-            f"🚛 Nueva salida registrada:\n"
-            f"Placa: {placa.numero_placa}\n"
-            f"Contenedor: {nuevo_mov.contenedor}\n"
-            f"Hora: {nuevo_mov.hora_salida.strftime('%H:%M %d/%m/%Y')}"
+            f"🚛 *Nueva salida registrada*\n"
+            f"🧱 Contenedor: {nuevo_mov.contenedor}\n"
+            f"🚛 Placa: {placa.numero_placa}\n"
+            f"👨‍🔧 Chofer: {placa.propietario or 'Desconocido'}\n"
+            f"🕒 Hora de salida: {nuevo_mov.hora_salida.strftime('%H:%M %d/%m/%Y')}"
         )
         enviar_notificacion(mensaje)
 

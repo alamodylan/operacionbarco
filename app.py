@@ -107,4 +107,44 @@ if __name__ == "__main__":
         else:
             print("ℹ️ Usuario administrador ya existe.")
 
+
+    # =====================================================
+    # 🕒 Verificación automática de movimientos prolongados
+    # =====================================================
+    import threading
+    import time
+    from models.movimiento import MovimientoBarco
+    from models.notificacion import enviar_notificacion
+
+    def verificar_movimientos_periodicamente():
+        """
+        Hilo en segundo plano que revisa cada minuto si hay
+        movimientos activos de más de 15 minutos sin cerrar.
+        """
+        while True:
+            try:
+                with app.app_context():
+                    ahora = datetime.now(CR_TZ)
+                    movimientos = MovimientoBarco.query.filter_by(estado="en_ruta").all()
+                    for mov in movimientos:
+                        if mov.hora_salida and (ahora - mov.hora_salida).total_seconds() > 900:
+                            mensaje = (
+                                f"🚨 *ALERTA DE RETRASO EN RUTA!*\n"
+                                f"🧱 Contenedor: {mov.contenedor}\n"
+                                f"🚛 Placa: {mov.placa.numero_placa}\n"
+                                f"👨‍🔧 Chofer: {mov.placa.propietario or 'Desconocido'}\n"
+                                f"🕒 Inicio: {mov.hora_salida.strftime('%H:%M %d/%m/%Y')}\n"
+                                f"⏱️ Tiempo transcurrido: "
+                                f"{int((ahora - mov.hora_salida).total_seconds() // 60)} minutos"
+                            )
+                            enviar_notificacion(mensaje)
+            except Exception as e:
+                app.logger.error(f"Error en verificación automática: {e}")
+
+            time.sleep(60)  # revisa cada minuto
+
+    # 🔹 Inicia el hilo automáticamente
+    threading.Thread(target=verificar_movimientos_periodicamente, daemon=True).start()
+
+
     app.run(host="0.0.0.0", port=5000, debug=True)
