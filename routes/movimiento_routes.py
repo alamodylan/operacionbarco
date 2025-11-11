@@ -17,18 +17,32 @@ movimiento_bp = Blueprint("movimiento_bp", __name__)
 @login_required
 def listar_movimientos():
     try:
-        # Mostrar operaciones finalizadas junto a sus movimientos
+        # 🔹 Buscar operaciones finalizadas
         operaciones = (
             Operacion.query
             .filter_by(estado="finalizada")
             .order_by(Operacion.fecha_creacion.desc())
             .all()
         )
-        return render_template("movimientos.html", operaciones=operaciones)
+
+        # 🔹 Filtrar solo los movimientos finalizados dentro de cada operación
+        datos = []
+        for op in operaciones:
+            movimientos_finalizados = [
+                m for m in op.movimientos if m.estado == "finalizado"
+            ]
+            if movimientos_finalizados:
+                datos.append({
+                    "operacion": op,
+                    "movimientos": movimientos_finalizados
+                })
+
+        return render_template("movimientos.html", datos=datos)
+
     except Exception as e:
         current_app.logger.exception(f"Error al listar movimientos: {e}")
         flash("Ocurrió un error al cargar los movimientos.", "danger")
-        return render_template("movimientos.html", operaciones=[])
+        return render_template("movimientos.html", datos=[])
 
 # ============================================================
 # 🏁 REGISTRAR LLEGADA / FINALIZAR MOVIMIENTO

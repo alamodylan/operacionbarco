@@ -5,18 +5,18 @@
 <div class="container mt-4">
     <h2 class="fw-bold mb-4">📋 Operaciones Finalizadas</h2>
 
-    {% if operaciones %}
-        {% for op in operaciones %}
+    {% if datos %}
+        {% for grupo in datos %}
         <div class="card mb-4 shadow-sm">
             <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                 <div>
-                    <strong>{{ op.nombre }}</strong>
+                    <strong>{{ grupo.operacion.nombre }}</strong>
                     <span class="badge bg-light text-dark ms-2">Finalizada</span>
                 </div>
-                <small>Finalizada el {{ op.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</small>
+                <small>Finalizada el {{ grupo.operacion.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</small>
             </div>
             <div class="card-body">
-                {% if op.movimientos %}
+                {% if grupo.movimientos %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
@@ -31,10 +31,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for mov in op.movimientos %}
+                            {% for mov in grupo.movimientos %}
                             <tr>
                                 <td>{{ loop.index }}</td>
-                                <td>{{ mov.placa.numero }}</td>
+                                <td>{{ mov.placa.numero_placa }}</td>
                                 <td>{{ mov.contenedor }}</td>
                                 <td>{{ mov.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
                                 <td>
@@ -48,7 +48,7 @@
                                     {% if mov.hora_llegada %}
                                         {{ mov.tiempo_total(formato=True) }}
                                     {% else %}
-                                        —
+                                        — 
                                     {% endif %}
                                 </td>
                                 <td>
