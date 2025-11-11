@@ -1,7 +1,9 @@
 # routes/notificacion_routes.py
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request, current_app, render_template
 from flask_login import login_required
 from models.notificacion import enviar_notificacion
+from datetime import datetime
+import pytz
 
 notificacion_bp = Blueprint("notificacion_bp", __name__)
 
@@ -10,9 +12,11 @@ notificacion_bp = Blueprint("notificacion_bp", __name__)
 @login_required
 def check():
     """
-    Verifica que el sistema de notificaciones esté activo.
+    Verifica que el sistema de notificaciones esté activo (versión visual con HTML).
     """
-    return jsonify({"status": "ok", "message": "✅ Sistema de notificaciones activo"}), 200
+    CR_TZ = pytz.timezone("America/Costa_Rica")
+    hora_cr = datetime.now(CR_TZ).strftime("%d/%m/%Y %H:%M:%S")
+    return render_template("notificacion.html", hora_cr=hora_cr)
 
 
 # ---- Ruta para enviar prueba de notificación manual ----

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Estado del Sistema de Notificaciones</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background-color: white;
+            padding: 35px 50px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            text-align: center;
+        }
+        .emoji {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        .status {
+            font-size: 1.6rem;
+            color: #2e7d32;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .time {
+            font-size: 0.95rem;
+            color: #555;
+        }
+        .footer {
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="emoji">✅</div>
+        <div class="status">Sistema de notificaciones activo</div>
+        <div class="time">Hora local: {{ hora_cr }}</div>
+        <div class="footer">Operación Barco - Módulo WhatsApp</div>
+    </div>
+</body>
+</html>
