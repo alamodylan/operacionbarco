@@ -5,10 +5,13 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="fw-bold">⚓ Operaciones de barco en proceso</h2>
-        <!-- Botón para abrir modal de nueva operación -->
+
+        <!-- Botón para abrir modal de nueva operación (solo admin) -->
+        {% if rol == 'Admin' %}
         <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevaOperacion">
             ➕ Nueva operación
         </button>
+        {% endif %}
     </div>
 
     <!-- Tabla de operaciones activas -->
@@ -45,10 +48,12 @@
                                class="btn btn-primary btn-sm d-flex align-items-center gap-1">
                                🔍 Ver detalles
                             </a>
-                            {% if op.estado == 'en_proceso' %}
+
+                            <!-- Finalizar operación solo para admin -->
+                            {% if rol == 'Admin' and op.estado == 'en_proceso' %}
                             <form action="{{ url_for('operacion_bp.finalizar_operacion', operacion_id=op.id) }}" method="POST" class="m-0">
                                 <button type="submit" class="btn btn-success btn-sm d-flex align-items-center gap-1">
-                                    ✅ Finalizar
+                                    ✅ Finalizar operación
                                 </button>
                             </form>
                             {% endif %}
@@ -66,7 +71,8 @@
     {% endif %}
 </div>
 
-<!-- Modal para crear nueva operación -->
+<!-- Modal para crear nueva operación (solo admin) -->
+{% if rol == 'Admin' %}
 <div class="modal fade" id="modalNuevaOperacion" tabindex="-1" aria-labelledby="modalNuevaOperacionLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content shadow-lg">
@@ -89,4 +95,5 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
