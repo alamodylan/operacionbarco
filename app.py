@@ -129,6 +129,7 @@ if __name__ == "__main__":
                 with app.app_context():
                     ahora = datetime.now(CR_TZ)
                     movimientos = MovimientoBarco.query.filter_by(estado="en_ruta").all()
+                    print("⏱️ Verificando movimientos activos...", datetime.now(CR_TZ).strftime("%H:%M:%S %d/%m/%Y"))
 
                     for mov in movimientos:
                         if not mov.hora_salida:
@@ -164,7 +165,7 @@ if __name__ == "__main__":
             time.sleep(60)  # revisa cada minuto
 
     # 🔹 Inicia el hilo automáticamente
-    threading.Thread(target=verificar_movimientos_periodicamente, daemon=True).start()
+    verificador = threading.Thread(target=verificar_movimientos_periodicamente, daemon=True)
+    verificador.start()
 
-
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)
