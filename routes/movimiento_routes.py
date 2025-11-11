@@ -8,7 +8,7 @@ from datetime import datetime
 import pytz
 CR_TZ = pytz.timezone("America/Costa_Rica")
 
-movimiento_bp = Blueprint("movimiento_bp", __name__)
+movimiento_bp = Blueprint("movimiento_bp", __name__, url_prefix="/movimientos")
 
 # ============================================================
 # 📋 LISTAR MOVIMIENTOS FINALIZADOS (operaciones finalizadas)
