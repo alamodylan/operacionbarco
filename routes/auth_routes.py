@@ -14,11 +14,16 @@ def login():
 
         user = Usuario.query.filter_by(email=email).first()
         if user and user.check_password(password):
-            # 🔒 Marca la sesión como "permanente" para que Flask aplique el temporizador
+            # 🔒 Marca la sesión como "permanente" para aplicar timeout de Flask
             session.permanent = True
             login_user(user)
             flash(f"Bienvenido, {user.nombre}", "success")
-            return redirect(url_for("dashboard"))
+
+            # 🚀 Redirigir según el rol del usuario
+            if user.rol == "Admin":
+                return redirect(url_for("placa_bp.listar_placas"))
+            else:
+                return redirect(url_for("operacion_bp.listar_operaciones"))
         else:
             flash("Correo o contraseña incorrectos", "danger")
 
