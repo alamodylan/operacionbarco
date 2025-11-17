@@ -28,12 +28,12 @@ def listar_operaciones():
             .order_by(Operacion.fecha_creacion.desc())
             .all()
         )
-        # ✅ Se envía también el rol actual al HTML
         return render_template("operaciones.html", operaciones=operaciones, rol=current_user.rol)
     except Exception as e:
         current_app.logger.exception(f"Error al listar operaciones: {e}")
         flash("Ocurrió un error al cargar las operaciones activas.", "danger")
         return render_template("operaciones.html", operaciones=[], rol=current_user.rol)
+
 # ------------------------------------------------------------
 # ➕ 2️⃣ Crear nueva operación de barco
 # ------------------------------------------------------------
@@ -42,13 +42,15 @@ def listar_operaciones():
 def nueva_operacion():
     try:
         nombre = request.form.get("nombre")
+        tipo_operacion = request.form.get("tipo_operacion")  # 🔥 NUEVO
 
-        if not nombre:
-            flash("Debe ingresar el nombre de la operación (barco).", "warning")
+        if not nombre or not tipo_operacion:
+            flash("Debe ingresar nombre y tipo de operación.", "warning")
             return redirect(url_for("operacion_bp.listar_operaciones"))
 
         nueva = Operacion(
             nombre=nombre.strip(),
+            tipo_operacion=tipo_operacion,  # 🔥 GUARDAR TIPO OPERACIÓN
             fecha_creacion=datetime.now(CR_TZ).replace(tzinfo=None)
         )
         db.session.add(nueva)
@@ -71,7 +73,6 @@ def detalle_operacion(operacion_id):
     try:
         operacion = Operacion.query.get_or_404(operacion_id)
 
-        # ✅ Cargar solo placas activas
         placas_disponibles = (
             Placa.query
             .filter(Placa.estado.ilike("activa"))
@@ -79,7 +80,6 @@ def detalle_operacion(operacion_id):
             .all()
         )
 
-        # ✅ Cargar movimientos asociados a esta operación
         movimientos = (
             MovimientoBarco.query
             .filter_by(operacion_id=operacion.id)
@@ -91,7 +91,8 @@ def detalle_operacion(operacion_id):
             "operacion_detalle.html",
             operacion=operacion,
             placas=placas_disponibles,
-            movimientos=movimientos
+            movimientos=movimientos,
+            rol=current_user.rol  # 🔥 NECESARIO PARA BLOQUEO EN HTML
         )
 
     except Exception as e:
@@ -100,7 +101,7 @@ def detalle_operacion(operacion_id):
         return redirect(url_for("operacion_bp.listar_operaciones"))
 
 # ------------------------------------------------------------
-# 🚛 4️⃣ Agregar movimiento
+# 🚛 4️⃣ Agregar movimiento (SALIDA)
 # ------------------------------------------------------------
 @operacion_bp.route("/agregar_movimiento/<int:operacion_id>", methods=["POST"])
 @login_required
@@ -118,19 +119,19 @@ def agregar_movimiento(operacion_id):
             placa_id=placa_id,
             contenedor=contenedor.strip().upper(),
             hora_salida=datetime.now(CR_TZ).replace(tzinfo=None),
-            estado="en_ruta"
+            estado="en_ruta",
+            ultima_notificacion=None
         )
 
         db.session.add(nuevo_mov)
         db.session.commit()
 
-        # 🔔 Notificación de inicio de viaje
+        # 🔔 Notificación de inicio
         placa = Placa.query.get(placa_id)
         mensaje = (
             f"🚛 *Nueva salida registrada*\n"
             f"🧱 Contenedor: {nuevo_mov.contenedor}\n"
             f"🚛 Placa: {placa.numero_placa}\n"
-            f"👨‍🔧 Chofer: {placa.propietario or 'Desconocido'}\n"
             f"🕒 Hora de salida: {nuevo_mov.hora_salida.strftime('%H:%M %d/%m/%Y')}"
         )
         enviar_notificacion(mensaje)
@@ -144,7 +145,7 @@ def agregar_movimiento(operacion_id):
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
 # ------------------------------------------------------------
-# 🏁 5️⃣ Finalizar un movimiento
+# 🏁 5️⃣ Finalizar un movimiento (ENTRADA)
 # ------------------------------------------------------------
 @operacion_bp.route("/finalizar_movimiento/<int:movimiento_id>", methods=["POST"])
 @login_required

@@ -18,7 +18,11 @@ class Usuario(UserMixin, db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    rol = db.Column(db.String(20), default="Usuario")  # Admin / Usuario
+
+    # 👇 NUEVO: se agregan roles adicionales
+    # Admin / Predio / Muelle
+    rol = db.Column(db.String(20), default="Usuario")
+
     fecha_creacion = db.Column(
         db.DateTime,
         default=lambda: datetime.now(CR_TZ).replace(tzinfo=None)
@@ -38,5 +42,10 @@ class Usuario(UserMixin, db.Model):
 
     # --- Métodos de permisos ---
     def es_admin(self):
-        """Devuelve True si el usuario tiene rol de administrador."""
         return self.rol == "Admin"
+
+    def es_predio(self):
+        return self.rol == "Predio"
+
+    def es_muelle(self):
+        return self.rol == "Muelle"

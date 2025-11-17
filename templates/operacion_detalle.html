@@ -3,14 +3,21 @@
 
 {% block content %}
 <div class="container mt-4">
+
     <!-- Encabezado -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="fw-bold">⚓ Detalle de Operación: {{ operacion.nombre }}</h2>
+        <h2 class="fw-bold">
+            ⚓ Detalle de Operación: {{ operacion.nombre }}
+            <small class="text-muted">({{ operacion.tipo_operacion|capitalize }})</small>
+        </h2>
+
+        {% if rol == 'Admin' %}
         <form action="{{ url_for('operacion_bp.finalizar_operacion', operacion_id=operacion.id) }}" method="POST">
             <button type="submit" class="btn btn-success">
                 Finalizar operación
             </button>
         </form>
+        {% endif %}
     </div>
 
     <p class="text-muted">
@@ -27,29 +34,50 @@
 
     <hr>
 
-    <!-- Formulario para agregar un nuevo movimiento -->
     {% if operacion.estado == 'en_proceso' %}
-    <div class="card mb-4 shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title mb-3 fw-bold">🚛 Agregar movimiento</h5>
-            <form method="POST" action="{{ url_for('operacion_bp.agregar_movimiento', operacion_id=operacion.id) }}" class="row g-2">
-                <div class="col-md-4">
-                    <select name="placa_id" class="form-select" required>
-                        <option value="">Seleccionar placa activa...</option>
-                        {% for placa in placas %}
-                        <option value="{{ placa.id }}">{{ placa.numero_placa }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <input type="text" name="contenedor" class="form-control" placeholder="Número de contenedor (ej: MSCU1234567)" required>
-                </div>
-                <div class="col-md-2 d-grid">
-                    <button type="submit" class="btn btn-primary">Agregar</button>
-                </div>
-            </form>
+
+        {% set permite_salida = 
+            (rol == 'Admin') or
+            (rol == 'UsuarioPredio' and operacion.tipo_operacion == 'exportacion') or
+            (rol == 'UsuarioMuelle' and operacion.tipo_operacion == 'importacion')
+        %}
+
+        {% if permite_salida %}
+        <!-- Formulario para agregar un nuevo movimiento -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3 fw-bold">🚛 Agregar movimiento (Salida)</h5>
+
+                <form method="POST" action="{{ url_for('operacion_bp.agregar_movimiento', operacion_id=operacion.id) }}" class="row g-2">
+
+                    <div class="col-md-4">
+                        <select name="placa_id"
+                                class="selectpicker form-control"
+                                data-live-search="true"
+                                data-size="7"
+                                title="Buscar placa..."
+                                required>
+                            {% for placa in placas %}
+                            <option value="{{ placa.id }}">{{ placa.numero_placa }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <input type="text" name="contenedor"
+                               class="form-control"
+                               placeholder="Número identificador"
+                               required>
+                    </div>
+
+                    <div class="col-md-2 d-grid">
+                        <button type="submit" class="btn btn-primary">Agregar</button>
+                    </div>
+
+                </form>
+            </div>
         </div>
-    </div>
+        {% endif %}
     {% endif %}
 
     <!-- Tabla de movimientos -->
@@ -59,7 +87,7 @@
                 <tr>
                     <th>#</th>
                     <th>Placa</th>
-                    <th>Contenedor</th>
+                    <th>N° Identificador</th>
                     <th>Hora salida</th>
                     <th>Hora llegada</th>
                     <th>Duración</th>
@@ -67,14 +95,23 @@
                     <th>Acción</th>
                 </tr>
             </thead>
+
             <tbody>
                 {% if movimientos %}
                     {% for mov in movimientos %}
+
+                    {% set permite_finalizar = 
+                        (rol == 'Admin') or
+                        (rol == 'UsuarioPredio' and operacion.tipo_operacion == 'importacion') or
+                        (rol == 'UsuarioMuelle' and operacion.tipo_operacion == 'exportacion')
+                    %}
+
                     <tr>
                         <td>{{ loop.index }}</td>
                         <td>{{ mov.placa.numero_placa }}</td>
                         <td>{{ mov.contenedor }}</td>
                         <td>{{ mov.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
+
                         <td>
                             {% if mov.hora_llegada %}
                                 {{ mov.hora_llegada.strftime('%d/%m/%Y %H:%M') }}
@@ -82,6 +119,7 @@
                                 —
                             {% endif %}
                         </td>
+
                         <td>
                             {% if mov.hora_llegada %}
                                 {{ mov.tiempo_total(formato=True) }}
@@ -89,6 +127,7 @@
                                 —
                             {% endif %}
                         </td>
+
                         <td>
                             {% if mov.estado == 'en_ruta' %}
                                 <span class="badge bg-warning text-dark">En ruta</span>
@@ -98,26 +137,33 @@
                                 <span class="badge bg-secondary">{{ mov.estado }}</span>
                             {% endif %}
                         </td>
+
                         <td>
-                            {% if mov.estado == 'en_ruta' %}
+                            {% if mov.estado == 'en_ruta' and permite_finalizar %}
                             <form method="POST" action="{{ url_for('operacion_bp.finalizar_movimiento', movimiento_id=mov.id) }}">
                                 <button type="submit" class="btn btn-sm btn-success">Finalizar</button>
                             </form>
                             {% else %}
-                            <span class="text-muted">—</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                     </tr>
+
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted">No hay movimientos registrados en esta operación.</td>
+                        <td colspan="8" class="text-center text-muted">
+                            No hay movimientos registrados en esta operación.
+                        </td>
                     </tr>
                 {% endif %}
             </tbody>
         </table>
     </div>
 
-    <a href="{{ url_for('operacion_bp.listar_operaciones') }}" class="btn btn-outline-secondary mt-3">← Volver a Operaciones</a>
+    <a href="{{ url_for('operacion_bp.listar_operaciones') }}" class="btn btn-outline-secondary mt-3">
+        ← Volver a Operaciones
+    </a>
+
 </div>
 {% endblock %}

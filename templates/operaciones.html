@@ -1,76 +1,3 @@
-{% extends "base.html" %}
-{% block title %}Operaciones{% endblock %}
-
-{% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="fw-bold">⚓ Operaciones de barco en proceso</h2>
-
-        <!-- Botón para abrir modal de nueva operación (solo admin) -->
-        {% if rol == 'Admin' %}
-        <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevaOperacion">
-            ➕ Nueva operación
-        </button>
-        {% endif %}
-    </div>
-
-    <!-- Tabla de operaciones activas -->
-    {% if operaciones %}
-    <div class="table-responsive shadow-sm">
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>Nombre del Barco</th>
-                    <th>Fecha de Creación</th>
-                    <th>Estado</th>
-                    <th>Acción</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for op in operaciones %}
-                <tr>
-                    <td>{{ op.id }}</td>
-                    <td class="fw-semibold">{{ op.nombre }}</td>
-                    <td>{{ op.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</td>
-                    <td>
-                        {% if op.estado == 'en_proceso' %}
-                            <span class="badge bg-warning text-dark">En proceso</span>
-                        {% elif op.estado == 'finalizada' %}
-                            <span class="badge bg-success">Finalizada</span>
-                        {% else %}
-                            <span class="badge bg-secondary">{{ op.estado }}</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center">
-                        <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-2">
-                            <a href="{{ url_for('operacion_bp.detalle_operacion', operacion_id=op.id) }}"
-                               class="btn btn-primary btn-sm d-flex align-items-center gap-1">
-                               🔍 Ver detalles
-                            </a>
-
-                            <!-- Finalizar operación solo para admin -->
-                            {% if rol == 'Admin' and op.estado == 'en_proceso' %}
-                            <form action="{{ url_for('operacion_bp.finalizar_operacion', operacion_id=op.id) }}" method="POST" class="m-0">
-                                <button type="submit" class="btn btn-success btn-sm d-flex align-items-center gap-1">
-                                    ✅ Finalizar operación
-                                </button>
-                            </form>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="alert alert-info text-center mt-4">
-        No hay operaciones de barco activas actualmente.
-    </div>
-    {% endif %}
-</div>
-
 <!-- Modal para crear nueva operación (solo admin) -->
 {% if rol == 'Admin' %}
 <div class="modal fade" id="modalNuevaOperacion" tabindex="-1" aria-labelledby="modalNuevaOperacionLabel" aria-hidden="true">
@@ -80,20 +7,34 @@
                 <h5 class="modal-title fw-bold" id="modalNuevaOperacionLabel">➕ Nueva Operación de Barco</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
+
             <form method="POST" action="{{ url_for('operacion_bp.nueva_operacion') }}">
                 <div class="modal-body">
+
                     <div class="mb-3">
                         <label for="nombre" class="form-label">Nombre del barco u operación</label>
-                        <input type="text" name="nombre" id="nombre" class="form-control" placeholder="Ejemplo: MSC AURORA" required>
+                        <input type="text" name="nombre" id="nombre" class="form-control"
+                               placeholder="Ejemplo: MSC AURORA" required>
                     </div>
+
+                    <!-- 🔥 NUEVO: Selección EXPORTACIÓN / IMPORTACIÓN -->
+                    <div class="mb-3">
+                        <label for="tipo_operacion" class="form-label">Tipo de operación</label>
+                        <select name="tipo_operacion" id="tipo_operacion" class="form-select" required>
+                            <option value="exportacion" selected>Exportación</option>
+                            <option value="importacion">Importación</option>
+                        </select>
+                    </div>
+
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Crear operación</button>
                 </div>
             </form>
+
         </div>
     </div>
 </div>
 {% endif %}
-{% endblock %}
