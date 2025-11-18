@@ -58,11 +58,13 @@
                                 data-size="7"
                                 title="Buscar placa..."
                                 required>
+
                             {% for placa in placas %}
-                                {% if placa.activa %}
+                                {% if placa.estado|lower == 'activa' %}
                                     <option value="{{ placa.id }}">{{ placa.numero_placa }}</option>
                                 {% endif %}
                             {% endfor %}
+
                         </select>
                     </div>
 
