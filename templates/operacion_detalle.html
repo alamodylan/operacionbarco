@@ -50,6 +50,7 @@
 
                 <form method="POST" action="{{ url_for('operacion_bp.agregar_movimiento', operacion_id=operacion.id) }}" class="row g-2">
 
+                    <!-- 🔹 Selector de placas activas con buscador -->
                     <div class="col-md-4">
                         <select name="placa_id"
                                 class="selectpicker form-control"
@@ -58,13 +59,16 @@
                                 title="Buscar placa..."
                                 required>
                             {% for placa in placas %}
-                            <option value="{{ placa.id }}">{{ placa.numero_placa }}</option>
+                                {% if placa.activa %}
+                                    <option value="{{ placa.id }}">{{ placa.numero_placa }}</option>
+                                {% endif %}
                             {% endfor %}
                         </select>
                     </div>
 
                     <div class="col-md-6">
-                        <input type="text" name="contenedor"
+                        <input type="text"
+                               name="contenedor"
                                class="form-control"
                                placeholder="Número identificador"
                                required>
