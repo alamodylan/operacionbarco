@@ -5,7 +5,6 @@ from models.base import db
 from models.operacion import Operacion
 from models.movimiento import MovimientoBarco
 from models.placa import Placa
-from models.notificacion import enviar_notificacion
 import pytz
 
 CR_TZ = pytz.timezone("America/Costa_Rica")
@@ -42,7 +41,7 @@ def listar_operaciones():
 def nueva_operacion():
     try:
         nombre = request.form.get("nombre")
-        tipo_operacion = request.form.get("tipo_operacion")  # 🔥 NUEVO
+        tipo_operacion = request.form.get("tipo_operacion")  # exportacion / importacion
 
         if not nombre or not tipo_operacion:
             flash("Debe ingresar nombre y tipo de operación.", "warning")
@@ -50,7 +49,7 @@ def nueva_operacion():
 
         nueva = Operacion(
             nombre=nombre.strip(),
-            tipo_operacion=tipo_operacion,  # 🔥 GUARDAR TIPO OPERACIÓN
+            tipo_operacion=tipo_operacion,
             fecha_creacion=datetime.now(CR_TZ).replace(tzinfo=None)
         )
         db.session.add(nueva)
@@ -92,7 +91,7 @@ def detalle_operacion(operacion_id):
             operacion=operacion,
             placas=placas_disponibles,
             movimientos=movimientos,
-            rol=current_user.rol  # 🔥 NECESARIO PARA BLOQUEO EN HTML
+            rol=current_user.rol
         )
 
     except Exception as e:
@@ -101,7 +100,7 @@ def detalle_operacion(operacion_id):
         return redirect(url_for("operacion_bp.listar_operaciones"))
 
 # ------------------------------------------------------------
-# 🚛 4️⃣ Agregar movimiento (SALIDA)
+# 🚛 4️⃣ Agregar movimiento (SALIDA) — SIN NOTIFICACIÓN
 # ------------------------------------------------------------
 @operacion_bp.route("/agregar_movimiento/<int:operacion_id>", methods=["POST"])
 @login_required
@@ -120,21 +119,13 @@ def agregar_movimiento(operacion_id):
             contenedor=contenedor.strip().upper(),
             hora_salida=datetime.now(CR_TZ).replace(tzinfo=None),
             estado="en_ruta",
-            ultima_notificacion=None
+            ultima_notificacion=None  # necesario para la alerta de emergencia
         )
 
         db.session.add(nuevo_mov)
         db.session.commit()
 
-        # 🔔 Notificación de inicio
-        placa = Placa.query.get(placa_id)
-        mensaje = (
-            f"🚛 *Nueva salida registrada*\n"
-            f"🧱 Contenedor: {nuevo_mov.contenedor}\n"
-            f"🚛 Placa: {placa.numero_placa}\n"
-            f"🕒 Hora de salida: {nuevo_mov.hora_salida.strftime('%H:%M %d/%m/%Y')}"
-        )
-        enviar_notificacion(mensaje)
+        # ❌ YA NO SE ENVÍA NOTIFICACIÓN AQUÍ
 
         flash(f"Movimiento agregado correctamente para el contenedor {contenedor}.", "success")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
@@ -145,7 +136,7 @@ def agregar_movimiento(operacion_id):
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
 # ------------------------------------------------------------
-# 🏁 5️⃣ Finalizar un movimiento (ENTRADA)
+# 🏁 5️⃣ Finalizar un movimiento (ENTRADA) — SIN NOTIFICACIÓN
 # ------------------------------------------------------------
 @operacion_bp.route("/finalizar_movimiento/<int:movimiento_id>", methods=["POST"])
 @login_required
@@ -154,6 +145,8 @@ def finalizar_movimiento(movimiento_id):
         mov = MovimientoBarco.query.get_or_404(movimiento_id)
         mov.finalizar()
         db.session.commit()
+
+        # ❌ YA NO SE ENVÍA NOTIFICACIÓN AQUÍ
 
         flash(f"Movimiento {mov.contenedor} finalizado correctamente.", "success")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=mov.operacion_id))
