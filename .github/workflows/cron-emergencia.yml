@@ -1,0 +1,18 @@
+name: Cron Emergencia Operación Barco
+on:
+  schedule:
+    # Cada 2 minutos (zona horaria UTC, pero aquí solo importa la frecuencia)
+    - cron: "*/2 * * * *"
+  # Para poder probarlo a mano desde GitHub
+  workflow_dispatch:
+
+jobs:
+  llamar-endpoint-emergencia:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Hacer request al endpoint de emergencia
+        run: |
+          echo "Llamando a /notificaciones/emergencia..."
+          curl -X GET --silent --show-error --max-time 20 "https://operacionbarco.onrender.com/notificaciones/emergencia"
+          echo "Listo."
