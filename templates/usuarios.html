@@ -29,14 +29,28 @@
                     <td>{{ u.id }}</td>
                     <td>{{ u.nombre }}</td>
                     <td>{{ u.email }}</td>
+
+                    <!-- 🔥 SELECT DE ROLES CORREGIDO -->
                     <td>
                         <form method="POST" action="{{ url_for('usuario_bp.cambiar_rol', id=u.id) }}" class="d-flex">
                             <select name="rol" class="form-select form-select-sm me-2" onchange="this.form.submit()">
-                                <option value="Usuario" {% if u.rol == 'Usuario' %}selected{% endif %}>Usuario</option>
-                                <option value="Admin" {% if u.rol == 'Admin' %}selected{% endif %}>Admin</option>
+
+                                <option value="UsuarioPredio" {% if u.rol == 'UsuarioPredio' %}selected{% endif %}>
+                                    Usuario de Predio
+                                </option>
+
+                                <option value="UsuarioMuelle" {% if u.rol == 'UsuarioMuelle' %}selected{% endif %}>
+                                    Usuario de Muelle
+                                </option>
+
+                                <option value="Admin" {% if u.rol == 'Admin' %}selected{% endif %}>
+                                    Admin
+                                </option>
+
                             </select>
                         </form>
                     </td>
+
                     <td>{{ u.fecha_creacion.strftime('%d/%m/%Y') if u.fecha_creacion else '—' }}</td>
                     <td>
                         {% if current_user.id != u.id %}
@@ -65,34 +79,45 @@
                 <h5 class="modal-title fw-bold" id="modalNuevoUsuarioLabel">➕ Nuevo usuario</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
+
             <form method="POST" action="{{ url_for('usuario_bp.crear_usuario') }}">
                 <div class="modal-body">
+
                     <div class="mb-3">
                         <label class="form-label">Nombre</label>
                         <input type="text" name="nombre" class="form-control" required>
                     </div>
+
                     <div class="mb-3">
                         <label class="form-label">Correo electrónico</label>
                         <input type="email" name="email" class="form-control" required>
                     </div>
+
                     <div class="mb-3">
                         <label class="form-label">Contraseña</label>
                         <input type="password" name="password" class="form-control" required>
                     </div>
+
+                    <!-- 🔥 ROLES CORREGIDOS -->
                     <div class="mb-3">
                         <label class="form-label">Rol</label>
-                        <select name="rol" class="form-select">
-                            <option value="Usuario">Usuario</option>
+                        <select name="rol" class="form-select" required>
+                            <option value="UsuarioPredio">Usuario de Predio</option>
+                            <option value="UsuarioMuelle">Usuario de Muelle</option>
                             <option value="Admin">Admin</option>
                         </select>
                     </div>
+
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Crear usuario</button>
                 </div>
             </form>
+
         </div>
     </div>
 </div>
+
 {% endblock %}
