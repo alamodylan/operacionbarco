@@ -1,9 +1,8 @@
 from datetime import datetime
 import pytz
 from models.base import db
-from models.notificacion import enviar_notificacion  # Envío de alertas
+from models.notificacion import enviar_notificacion
 
-# Zona horaria de Costa Rica
 CR_TZ = pytz.timezone("America/Costa_Rica")
 
 class MovimientoBarco(db.Model):
@@ -12,21 +11,18 @@ class MovimientoBarco(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Relación con operación
     operacion_id = db.Column(
         db.Integer,
         db.ForeignKey("operacionbarco.operaciones_barco.id"),
         nullable=False
     )
 
-    # Relación con placa
     placa_id = db.Column(
         db.Integer,
         db.ForeignKey("operacionbarco.placas.id"),
         nullable=False
     )
 
-    # Datos del movimiento
     contenedor = db.Column(db.String(50), nullable=False)
     hora_salida = db.Column(
         db.DateTime,
@@ -34,53 +30,54 @@ class MovimientoBarco(db.Model):
     )
     hora_llegada = db.Column(db.DateTime, nullable=True)
 
-    # 🚨 SE RESPETA tu estructura existente
     estado = db.Column(db.String(20), default="en_ruta")
 
-    # 🔔 Control de notificaciones
     ultima_notificacion = db.Column(db.DateTime, nullable=True)
+
+    alerta_orden_enviada = db.Column(db.Boolean, default=False)
 
     placa = db.relationship("Placa", backref="movimientos")
 
     # ======================================================
-    # 🔥 MÉTODOS DE URGENCIA
+    # 🔥 URGENCIA
     # ======================================================
 
+    def _ahora(self):
+        """Devuelve el tiempo actual con la misma zona horaria usada en BD."""
+        return datetime.now(CR_TZ).replace(tzinfo=None)
+
     def es_urgente(self):
-        """Un movimiento es urgente si han pasado 15 minutos y no está finalizado."""
-        if self.estado != "en_ruta":  # RESPETAMOS TU ESTADO
+        if self.estado != "en_ruta":
             return False
 
-        minutos = (datetime.now() - self.hora_salida).total_seconds() / 60
+        ahora = self._ahora()
+        minutos = (ahora - self.hora_salida).total_seconds() / 60
         return minutos >= 15
 
     def debe_notificar(self):
-        """Debe notificar solo si es urgente y cumple tiempo de espera."""
         if not self.es_urgente():
             return False
 
-        # Primera notificación
+        ahora = self._ahora()
+
+        # primera notificación
         if self.ultima_notificacion is None:
             return True
 
-        # Cada 3 minutos
-        minutos = (datetime.now() - self.ultima_notificacion).total_seconds() / 60
+        minutos = (ahora - self.ultima_notificacion).total_seconds() / 60
         return minutos >= 3
 
     def marcar_notificado(self):
-        """Registra la hora en que se envió la notificación."""
-        self.ultima_notificacion = datetime.now()
+        self.ultima_notificacion = self._ahora()
 
     # ======================================================
-    # 🟩 FINALIZAR MOVIMIENTO
+    # 🟩 FINALIZAR
     # ======================================================
 
     def finalizar(self):
-        """Finaliza el movimiento y envía una notificación."""
-        self.hora_llegada = datetime.now(CR_TZ).replace(tzinfo=None)
-        self.estado = "finalizado"  # RESPETAMOS TU ESTADO
+        self.hora_llegada = self._ahora()
+        self.estado = "finalizado"
 
-        # Cálculo de duración
         duracion_min = int((self.hora_llegada - self.hora_salida).total_seconds() / 60)
 
         mensaje = (
@@ -95,10 +92,6 @@ class MovimientoBarco(db.Model):
             enviar_notificacion(mensaje)
         except Exception as e:
             print(f"⚠️ Error al enviar notificación: {e}")
-
-    # ======================================================
-    # ⏱️ Duración total
-    # ======================================================
 
     def tiempo_total(self, formato=False):
         if self.hora_llegada:
