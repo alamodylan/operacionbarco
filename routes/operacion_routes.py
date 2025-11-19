@@ -189,3 +189,8 @@ def debug_noti():
         "WHATSAPP_PHONE_1": repr(current_app.config.get("WHATSAPP_PHONE_1")),
         "CALLMEBOT_API_KEY_1": repr(current_app.config.get("CALLMEBOT_API_KEY_1")),
     }
+@operacion_bp.route("/noti-test")
+def noti_test():
+    from models.notificacion import enviar_notificacion
+    ok = enviar_notificacion("🔥 Notificación de prueba Operación Barco")
+    return {"resultado": ok}
