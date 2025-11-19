@@ -6,64 +6,59 @@ from flask import current_app
 
 def enviar_notificacion(mensaje: str) -> bool:
     """
-    Envía una notificación por WhatsApp usando CallMeBot a uno o varios números.
-    Usa WHATSAPP_PHONE y WHATSAPP_PHONE_X si existen.
+    Envía una notificación por WhatsApp usando la API de CallMeBot.
+    Ahora soporta múltiples números (WHATSAPP_PHONE, WHATSAPP_PHONE_1, _2, etc.)
+    Retorna True si al menos una notificación se envía correctamente.
     """
+
     try:
+        # Obtener todos los números configurados
+        telefonos = []
+        apikeys = []
+
+        # Número principal
+        t1 = current_app.config.get("WHATSAPP_PHONE")
+        k1 = current_app.config.get("CALLMEBOT_API_KEY")
+        if t1 and k1:
+            telefonos.append(t1)
+            apikeys.append(k1)
+
+        # Número secundario
+        t2 = current_app.config.get("WHATSAPP_PHONE_1")
+        k2 = current_app.config.get("CALLMEBOT_API_KEY_1")
+        if t2 and k2:
+            telefonos.append(t2)
+            apikeys.append(k2)
+
+        if not telefonos:
+            current_app.logger.warning("⚠️ No hay teléfonos configurados para notificar.")
+            return False
+
+        # Sanitiza el mensaje
         mensaje = mensaje.strip()
         mensaje_codificado = quote_plus(mensaje)
 
-        # ================
-        # 1️⃣ Cargar todos los números disponibles
-        # ================
-        numeros = []
+        exito = False
 
-        # Principal
-        tel_base = current_app.config.get("WHATSAPP_PHONE")
-        api_base = current_app.config.get("CALLMEBOT_API_KEY")
-
-        if tel_base and api_base:
-            numeros.append((tel_base, api_base))
-
-        # Adicionales WHATSAPP_PHONE_1, WHATSAPP_PHONE_2, ...
-        for i in range(1, 10):  # soporta hasta 10 números (se puede ampliar)
-            tel = current_app.config.get(f"WHATSAPP_PHONE_{i}")
-            api = current_app.config.get(f"CALLMEBOT_API_KEY_{i}")
-            if tel and api:
-                numeros.append((tel, api))
-
-        if not numeros:
-            current_app.logger.warning("⚠️ No hay números configurados para enviar notificaciones.")
-            return False
-
-        # ================
-        # 2️⃣ Enviar mensaje a todos los números encontrados
-        # ================
-        exito_total = True
-
-        for tel, api in numeros:
+        # Enviar a cada número
+        for telefono, apikey in zip(telefonos, apikeys):
             url = (
                 f"https://api.callmebot.com/whatsapp.php?"
-                f"phone={tel}&text={mensaje_codificado}&apikey={api}"
+                f"phone={telefono}&text={mensaje_codificado}&apikey={apikey}"
             )
 
-            try:
-                response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=10)
 
-                if response.status_code == 200:
-                    current_app.logger.info(f"📨 Notificación enviada a {tel}")
-                else:
-                    exito_total = False
-                    current_app.logger.error(
-                        f"❌ Error al enviar a {tel}: {response.status_code} - {response.text}"
-                    )
+            if response.status_code == 200:
+                current_app.logger.info(f"✅ Notificación enviada a {telefono}")
+                exito = True
+            else:
+                current_app.logger.error(
+                    f"❌ Error al enviar a {telefono}: {response.status_code} - {response.text}"
+                )
 
-            except Exception as e:
-                exito_total = False
-                current_app.logger.error(f"❌ Error enviando a {tel}: {e}")
-
-        return exito_total
+        return exito
 
     except Exception as e:
-        current_app.logger.exception(f"❌ Error inesperado al enviar notificación: {e}")
+        current_app.logger.exception(f"❌ Error inesperado al enviar la notificación: {e}")
         return False
