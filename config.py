@@ -32,8 +32,24 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Variables de WhatsApp
+    # ============================================================
+    # 🔔 CONFIGURACIÓN DE WHATSAPP PARA MÚLTIPLES NÚMEROS
+    # ============================================================
+
+    # Número principal
     WHATSAPP_PHONE = os.getenv("WHATSAPP_PHONE")
     CALLMEBOT_API_KEY = os.getenv("CALLMEBOT_API_KEY")
+
+    # Número secundario
+    WHATSAPP_PHONE_1 = os.getenv("WHATSAPP_PHONE_1")
+    CALLMEBOT_API_KEY_1 = os.getenv("CALLMEBOT_API_KEY_1")
+
+    # Si deseas, puedes agregar más números:
+    # WHATSAPP_PHONE_2 = os.getenv("WHATSAPP_PHONE_2")
+    # CALLMEBOT_API_KEY_2 = os.getenv("CALLMEBOT_API_KEY_2")
+    # WHATSAPP_PHONE_3 = os.getenv("WHATSAPP_PHONE_3")
+    # CALLMEBOT_API_KEY_3 = os.getenv("CALLMEBOT_API_KEY_3")
+
+    # ============================================================
 
     DEBUG = os.getenv("FLASK_DEBUG", "false").lower() == "true"
