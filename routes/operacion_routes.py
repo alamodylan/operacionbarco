@@ -177,3 +177,15 @@ def finalizar_operacion(operacion_id):
         current_app.logger.exception(f"Error al finalizar operación: {e}")
         flash("Error al finalizar la operación.", "danger")
         return redirect(url_for("operacion_bp.listar_operaciones"))
+    
+# ------------------------------------------------------------
+# 🧪 DEBUG: Ver valores reales de WhatsApp cargados desde Render
+# ------------------------------------------------------------
+@operacion_bp.route("/debug-noti", methods=["GET"])
+def debug_noti():
+    return {
+        "WHATSAPP_PHONE": repr(current_app.config.get("WHATSAPP_PHONE")),
+        "CALLMEBOT_API_KEY": repr(current_app.config.get("CALLMEBOT_API_KEY")),
+        "WHATSAPP_PHONE_1": repr(current_app.config.get("WHATSAPP_PHONE_1")),
+        "CALLMEBOT_API_KEY_1": repr(current_app.config.get("CALLMEBOT_API_KEY_1")),
+    }
