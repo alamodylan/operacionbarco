@@ -24,10 +24,20 @@
         </div>
     </div>
 
+    <!-- 🔎 BUSCADOR -->
+    <div class="input-group mb-3">
+        <span class="input-group-text">🔍 Buscar</span>
+        <input
+            type="text"
+            id="buscadorPlacas"
+            class="form-control"
+            placeholder="Buscar por placa, chofer, estado, usuario…">
+    </div>
+
     <!-- Tabla de placas -->
     {% if placas %}
     <div class="table-responsive">
-        <table class="table table-hover align-middle shadow-sm">
+        <table class="table table-hover align-middle shadow-sm" id="tablaPlacas">
             <thead class="table-primary">
                 <tr>
                     <th>ID</th>
@@ -45,12 +55,10 @@
                     <td class="fw-bold">{{ placa.numero_placa }}</td>
                     <td>{{ placa.propietario or '—' }}</td>
 
-                    <!-- ✅ Muestra correctamente el usuario -->
                     <td>{{ placa.usuario.nombre if placa.usuario else '—' }}</td>
 
                     <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
 
-                    <!-- ✅ Select para cambiar estado -->
                     <td>
                         <form method="POST" action="{{ url_for('placa_bp.cambiar_estado', placa_id=placa.id) }}" class="d-flex align-items-center">
                             <select name="estado" class="form-select form-select-sm me-2" onchange="this.form.submit()">
@@ -70,5 +78,18 @@
     </div>
     {% endif %}
 </div>
+
+<!-- 🔎 Buscador en vivo -->
+<script>
+document.getElementById("buscadorPlacas").addEventListener("keyup", function() {
+    let filtro = this.value.toLowerCase();
+    let filas = document.querySelectorAll("#tablaPlacas tbody tr");
+
+    filas.forEach(fila => {
+        let texto = fila.innerText.toLowerCase();
+        fila.style.display = texto.includes(filtro) ? "" : "none";
+    });
+});
+</script>
 
 {% endblock %}

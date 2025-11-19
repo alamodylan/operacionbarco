@@ -75,23 +75,51 @@ class MovimientoBarco(db.Model):
     # ======================================================
 
     def finalizar(self):
-        self.hora_llegada = self._ahora()
+        """Finaliza un movimiento y, si estaba en emergencia, envía aviso especial."""
+
+        ahora = datetime.now(CR_TZ).replace(tzinfo=None)
+
+        # Detectar si el viaje estaba en emergencia antes de cerrar
+        estaba_en_emergencia = False
+
+        # Condición 1: más de 15 minutos en ruta
+        if self.estado == "en_ruta" and self.hora_salida:
+            minutos = (ahora - self.hora_salida).total_seconds() / 60
+            if minutos >= 15:
+                estaba_en_emergencia = True
+
+        # Condición 2: tenía alertas enviadas
+        if self.ultima_notificacion:
+            estaba_en_emergencia = True
+
+        # Finalizar
+        self.hora_llegada = ahora
         self.estado = "finalizado"
 
-        duracion_min = int((self.hora_llegada - self.hora_salida).total_seconds() / 60)
+        # Limpiar controles
+        self.ultima_notificacion = None
+        self.alerta_orden_enviada = True
 
-        mensaje = (
-            f"✅ *Movimiento finalizado*\n"
-            f"🧱 Contenedor: {self.contenedor}\n"
-            f"🚛 Placa: {self.placa.numero_placa}\n"
-            f"🕒 Llegada: {self.hora_llegada.strftime('%H:%M %d/%m/%Y')}\n"
-            f"⏱️ Duración total: {duracion_min} minutos"
-        )
+        # Enviar notificación solo si estaba en emergencia
+        if estaba_en_emergencia:
+            duracion_min = int((self.hora_llegada - self.hora_salida).total_seconds() / 60)
 
-        try:
-            enviar_notificacion(mensaje)
-        except Exception as e:
-            print(f"⚠️ Error al enviar notificación: {e}")
+            mensaje = (
+                f"🟢 *ALERTA RESUELTA*\n"
+                f"El viaje que estaba en *EMERGENCIA* ha sido finalizado.\n\n"
+                f"📦 Identificador: {self.contenedor}\n"
+                f"🚛 Placa: {self.placa.numero_placa}\n"
+                f"👤 Chofer: {self.placa.propietario or 'No registrado'}\n"
+                f"🕒 Salida: {self.hora_salida.strftime('%d/%m/%Y %H:%M')}\n"
+                f"🏁 Llegada: {self.hora_llegada.strftime('%d/%m/%Y %H:%M')}\n"
+                f"⏱️ Duración total: {duracion_min} minutos\n\n"
+                f"✔ Emergencia cerrada correctamente."
+            )
+
+            try:
+                enviar_notificacion(mensaje)
+            except Exception as e:
+                print(f"⚠️ Error al enviar notificación de cierre de emergencia: {e}")
 
     def tiempo_total(self, formato=False):
         if self.hora_llegada:
