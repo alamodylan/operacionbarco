@@ -13,7 +13,7 @@
                     <strong>{{ grupo.operacion.nombre }}</strong>
                     <span class="badge bg-light text-dark ms-2">Finalizada</span>
                 </div>
-                <small>Finalizada el {{ grupo.operacion.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</small>
+                <small>Iniciada el {{ grupo.operacion.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</small>
             </div>
             <div class="card-body">
                 {% if grupo.movimientos %}
