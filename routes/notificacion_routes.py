@@ -83,7 +83,7 @@ def alerta_emergencia():
 
         mensaje = (
             f"🚨🚨🚨🚨🚨🚨🚨🚨🚨\n"
-            f"🚨 *ALERTA DE EMERGENCIA*\n"
+            f" *ALERTA DE EMERGENCIA*\n"
             f"Un vehículo lleva *más de 15 minutos sin cerrarse*.\n\n"
             f"👤 Chofer: {nombre_chofer}\n"
             f"🚛 Placa: {placa.numero_placa}\n"
