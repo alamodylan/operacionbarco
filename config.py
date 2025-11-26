@@ -53,6 +53,9 @@ class Config:
     WHATSAPP_PHONE_4 = os.getenv("WHATSAPP_PHONE_4")
     CALLMEBOT_API_KEY_4 = os.getenv("CALLMEBOT_API_KEY_4")
 
+    WHATSAPP_PHONE_5 = os.getenv("WHATSAPP_PHONE_5")
+    CALLMEBOT_API_KEY_5 = os.getenv("CALLMEBOT_API_KEY_5")
+
     # Si deseas, puedes agregar más números:
     # WHATSAPP_PHONE_2 = os.getenv("WHATSAPP_PHONE_2")
     # CALLMEBOT_API_KEY_2 = os.getenv("CALLMEBOT_API_KEY_2")
