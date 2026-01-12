@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ titulo }}</title>
+  <style>
+    body{font-family:Segoe UI,sans-serif;background:#0b1220;color:#fff;margin:0;padding:24px}
+    .card{max-width:900px;margin:0 auto;background:#111a2e;border-radius:18px;padding:26px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    h1{margin:0 0 8px;font-size:28px}
+    .fecha{opacity:.8;margin-bottom:18px}
+    pre{white-space:pre-wrap;word-wrap:break-word;font-size:18px;line-height:1.35;background:#0b1220;padding:18px;border-radius:14px}
+    a{display:inline-block;margin-top:14px;color:#9ecbff;text-decoration:none;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>{{ titulo }}</h1>
+    <div class="fecha">{{ fecha }}</div>
+    <pre>{{ mensaje }}</pre>
+    <a href="{{ url_for('dashboard') }}">⬅ Volver</a>
+  </div>
+</body>
+</html>
