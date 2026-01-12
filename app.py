@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, send_from_directory
 from flask_login import LoginManager, login_required, current_user
 from datetime import timedelta
 from config import Config
@@ -16,6 +16,7 @@ from routes.operacion_routes import operacion_bp
 from routes.movimiento_routes import movimiento_bp
 from routes.notificacion_routes import notificacion_bp
 from routes.usuario_routes import usuario_bp
+
 
 def create_app():
     app = Flask(__name__)
@@ -49,6 +50,14 @@ def create_app():
     app.register_blueprint(notificacion_bp)
     app.register_blueprint(usuario_bp)
 
+    # =====================================================
+    # ✅ CAMBIO NECESARIO: Servir Service Worker en la raíz
+    # =====================================================
+    @app.route("/sw.js")
+    def sw():
+        # Sirve el Service Worker desde la raíz para que tenga scope "/"
+        return send_from_directory("static", "sw.js")
+
     # 🔹 Crear tablas y usuario admin solo una vez (seguro para Render)
     with app.app_context():
         db.create_all()
@@ -79,6 +88,7 @@ def create_app():
 
     return app
 
+
 # =====================================================
 # 🌎 Definir zona horaria de Costa Rica
 # =====================================================
@@ -108,7 +118,6 @@ if __name__ == "__main__":
             print("✅ Usuario administrador creado automáticamente.")
         else:
             print("ℹ️ Usuario administrador ya existe.")
-
 
     # =====================================================
     # 🕒 Verificación automática de movimientos prolongados

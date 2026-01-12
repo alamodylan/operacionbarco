@@ -3,33 +3,42 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch (e) {
-    data = { title: "Operación Barco", body: event.data ? event.data.text() : "" };
+    data = {};
   }
 
   const title = data.title || "Operación Barco";
-  const body = data.body || "";
-  const url = data.url || "/dashboard";
+  const body = data.body || "Nueva alerta";
+  const url = data.url || "/notificaciones/alerta";
 
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      data: { url },
-      requireInteraction: true
-    })
-  );
+  const options = {
+    body,
+    data: { url },
+    tag: "operacionbarco-alert",
+    renotify: true
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
+// ✅ Esto hace que al tocar ABRA la alerta grande
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const url = event.notification?.data?.url || "/dashboard";
+  const url = event.notification?.data?.url || "/notificaciones/alerta";
 
-  event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ("focus" in client) return client.focus();
+  event.waitUntil((async () => {
+    const allClients = await clients.matchAll({ type: "window", includeUncontrolled: true });
+
+    // Si ya hay una pestaña abierta del sistema, la enfocamos y navegamos
+    for (const client of allClients) {
+      if (client.url.startsWith(self.location.origin)) {
+        await client.focus();
+        try { await client.navigate(url); } catch (e) {}
+        return;
       }
-      if (clients.openWindow) return clients.openWindow(url);
-    })
-  );
+    }
+
+    // Si no hay pestaña, abrimos una nueva
+    await clients.openWindow(url);
+  })());
 });

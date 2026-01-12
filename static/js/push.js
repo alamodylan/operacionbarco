@@ -11,10 +11,11 @@ async function activarNotificaciones() {
       return;
     }
 
-    const registro = await navigator.serviceWorker.register("/static/sw.js");
+    // ✅ IMPORTANTE: registrar en la raíz para que pueda abrir /notificaciones/alerta
+    const registro = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
 
     if (!window.VAPID_PUBLIC_KEY || window.VAPID_PUBLIC_KEY.length < 20) {
-      alert("Falta configurar la clave VAPID pública (siguiente paso).");
+      alert("Falta configurar la clave VAPID pública.");
       return;
     }
 
@@ -25,7 +26,7 @@ async function activarNotificaciones() {
 
     const res = await fetch("/notificaciones/api/push/subscribe", {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(sub)
     });
 
@@ -37,9 +38,21 @@ async function activarNotificaciones() {
   }
 }
 
-// Solo para probar que el botón funciona (por ahora NO manda push real, eso viene después)
+// ✅ Ahora sí hace una prueba REAL con tu backend
 async function probarNotificacion() {
-  alert("🧪 Botón OK. La prueba real viene cuando configuremos VAPID + backend.");
+  try {
+    const res = await fetch("/notificaciones/api/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mensaje: "🧪 Prueba Push: tocame para abrir en grande" })
+    });
+
+    if (res.ok) alert("✅ Push enviado. Revisá la notificación y tocala.");
+    else alert("❌ No se pudo enviar el push");
+  } catch (e) {
+    console.error(e);
+    alert("Error enviando prueba push");
+  }
 }
 
 function urlBase64ToUint8Array(base64String) {
