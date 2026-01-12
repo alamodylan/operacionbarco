@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Estado del Sistema de Notificaciones</title>
+
+    <!-- (Opcional pero recomendado para PWA) -->
+    <link rel="manifest" href="/static/manifest.json">
+
     <style>
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -43,7 +47,7 @@
         }
         .btn-volver {
             display: inline-block;
-            margin-top: 20px;
+            margin-top: 12px;
             background-color: #1976d2;
             color: white;
             text-decoration: none;
@@ -56,6 +60,40 @@
             background-color: #0d47a1;
             transform: scale(1.05);
         }
+
+        /* Botones nuevos */
+        .btn-push {
+            display: inline-block;
+            margin-top: 14px;
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-push:hover {
+            background-color: #1b5e20;
+            transform: scale(1.05);
+        }
+        .btn-test {
+            display: inline-block;
+            margin-top: 10px;
+            background-color: #6a1b9a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-test:hover {
+            background-color: #4a148c;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
@@ -63,8 +101,26 @@
         <div class="emoji">✅</div>
         <div class="status">Sistema de notificaciones activo</div>
         <div class="time">Hora local: {{ hora_cr }}</div>
+
+        <!-- NUEVO: activar push -->
+        <button class="btn-push" onclick="activarNotificaciones()">
+            🔔 Activar notificaciones (Push)
+        </button>
+
+        <!-- NUEVO: prueba rápida (opcional) -->
+        <button class="btn-test" onclick="probarNotificacion()">
+            🧪 Probar notificación
+        </button>
+
         <a href="{{ url_for('dashboard') }}" class="btn-volver">⬅ Volver al inicio</a>
         <div class="footer">Operación Barco - Módulo WhatsApp</div>
     </div>
+
+    <!-- Tu JS nuevo -->
+    <script>
+        // Ajustá esto cuando generemos tus claves VAPID (te lo doy en el siguiente paso)
+        window.VAPID_PUBLIC_KEY = "{{ vapid_public_key|default('') }}";
+    </script>
+    <script src="{{ url_for('static', filename='js/push.js') }}"></script>
 </body>
 </html>

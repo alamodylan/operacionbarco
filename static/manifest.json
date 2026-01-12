@@ -1,0 +1,15 @@
+{
+  "name": "Operación de Barco",
+  "short_name": "Operación",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0b3c5d",
+  "theme_color": "#0b3c5d",
+  "icons": [
+    {
+      "src": "/static/LogoAlamo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    }
+  ]
+}
