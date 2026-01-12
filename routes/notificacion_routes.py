@@ -137,7 +137,7 @@ def alerta_emergencia():
         tiempo_trans = ahora - mov.hora_salida
 
         # no antes de 15 minutos
-        if tiempo_trans < timedelta(minutes=15):
+        if tiempo_trans < timedelta(minutes=20):
             continue
 
         # Control para evitar spam
@@ -155,7 +155,7 @@ def alerta_emergencia():
         mensaje = (
             f"🚨🚨🚨🚨🚨🚨🚨🚨🚨\n"
             f" *ALERTA DE EMERGENCIA*\n"
-            f"Un vehículo lleva *más de 15 minutos sin cerrarse*.\n\n"
+            f"Un vehículo lleva *más de 20 minutos sin cerrarse*.\n\n"
             f"👤 Chofer: {nombre_chofer}\n"
             f"🚛 Placa: {placa.numero_placa}\n"
             f"📦 Identificador: {mov.contenedor}\n"
@@ -169,7 +169,7 @@ def alerta_emergencia():
         enviar_notificacion(mensaje)
 
         # ✅ Push (mismo mensaje, sin asteriscos)
-        enviar_push_mismo_mensaje(mensaje, titulo="🚨 Emergencia: +15 min")
+        enviar_push_mismo_mensaje(mensaje, titulo="🚨 Emergencia: +20 min")
 
         mov.ultima_notificacion = ahora
         db.session.commit()
@@ -324,3 +324,4 @@ def push_send():
     except Exception as e:
         current_app.logger.exception(f"Error en push_send: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+    

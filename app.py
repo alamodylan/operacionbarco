@@ -6,6 +6,8 @@ from models.base import db
 from models.usuario import Usuario, bcrypt  # bcrypt importado del modelo
 import pytz
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()
 
 # Importación de Blueprints
 from routes.auth_routes import auth_bp
@@ -137,8 +139,8 @@ if __name__ == "__main__":
 
                         minutos_transcurridos = (ahora - mov.hora_salida).total_seconds() / 60
 
-                        # ✅ Si pasaron más de 15 minutos
-                        if minutos_transcurridos >= 15:
+                        # ✅ Si pasaron más de 20 minutos
+                        if minutos_transcurridos >= 20:
                             ultimo_envio = ultima_alerta.get(mov.id)
                             # ✅ Solo reenvía si no ha enviado o pasaron 4 minutos desde la última alerta
                             if not ultimo_envio or (ahora - ultimo_envio).total_seconds() >= 240:
