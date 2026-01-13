@@ -3,120 +3,118 @@
 {% block content %}
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="fw-bold">🚛 Placas registradas</h2>
-    </div>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold">🚛 Placas registradas</h2>
+  </div>
 
-    <!-- Formulario para agregar nueva placa -->
-    <div class="card mb-4 shadow-sm">
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('placa_bp.nueva_placa') }}" class="row g-2">
-                <div class="col-md-4">
-                    <input type="text" name="numero_placa" class="form-control" placeholder="Placa" required>
-                </div>
-                <div class="col-md-4">
-                    <input type="text" name="propietario" class="form-control" placeholder="Chofer">
-                </div>
-
-                <!-- ✅ Color cabezal al crear -->
-                <div class="col-md-3">
-                    <input type="text" name="color_cabezal" class="form-control" placeholder="Color cabezal (ej: Rojo)">
-                </div>
-
-                <div class="col-md-1 d-grid">
-                    <button type="submit" class="btn btn-primary">Agregar</button>
-                </div>
-            </form>
+  <!-- Formulario para agregar nueva placa -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('placa_bp.nueva_placa') }}" class="row g-2">
+        <div class="col-md-4">
+          <input type="text" name="numero_placa" class="form-control" placeholder="Placa" required>
         </div>
+        <div class="col-md-4">
+          <input type="text" name="propietario" class="form-control" placeholder="Chofer">
+        </div>
+        <div class="col-md-3">
+          <input type="text" name="color_cabezal" class="form-control" placeholder="Color cabezal (ej: Rojo)">
+        </div>
+        <div class="col-md-1 d-grid">
+          <button type="submit" class="btn btn-primary">Agregar</button>
+        </div>
+      </form>
     </div>
+  </div>
 
-    <!-- 🔎 BUSCADOR -->
-    <div class="input-group mb-3">
-        <span class="input-group-text">🔍 Buscar</span>
-        <input type="text" id="buscadorPlacas" class="form-control"
-               placeholder="Buscar por placa, chofer, color, estado, usuario…">
-    </div>
+  <!-- 🔎 BUSCADOR -->
+  <div class="input-group mb-3">
+    <span class="input-group-text">🔍 Buscar</span>
+    <input type="text" id="buscadorPlacas" class="form-control"
+           placeholder="Buscar por placa, chofer, color, estado, usuario…">
+  </div>
 
-    <!-- Tabla -->
-    {% if placas %}
+  {% if placas %}
+  <!-- ✅ UN SOLO FORM PARA TODA LA TABLA -->
+  <form method="POST" action="{{ url_for('placa_bp.actualizar_placas_batch') }}">
     <div class="table-responsive">
-        <table class="table table-hover align-middle shadow-sm" id="tablaPlacas">
-            <thead class="table-primary">
-                <tr>
-                    <th>ID</th>
-                    <th>Número de placa</th>
-                    <th>Chofer</th>
-                    <th>Color cabezal</th>
-                    <th>Registrado por</th>
-                    <th>Fecha de registro</th>
-                    <th>Estado</th>
-                    <th class="text-end">Guardar</th>
-                </tr>
-            </thead>
+      <table class="table table-hover align-middle shadow-sm" id="tablaPlacas">
+        <thead class="table-primary">
+          <tr>
+            <th>ID</th>
+            <th>Número de placa</th>
+            <th>Chofer</th>
+            <th>Color cabezal</th>
+            <th>Registrado por</th>
+            <th>Fecha de registro</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
 
-            <tbody>
-                {% for placa in placas %}
-                <tr class="fila-placa">
-                    <td>{{ placa.id }}</td>
-                    <td class="fw-bold">{{ placa.numero_placa }}</td>
+        <tbody>
+          {% for placa in placas %}
+          <tr class="fila-placa">
+            <td>{{ placa.id }}</td>
+            <td class="fw-bold">{{ placa.numero_placa }}</td>
 
-                    <!-- ✅ FORM actualizar (chofer + color) -->
-                    <td>
-                        <form method="POST"
-                              action="{{ url_for('placa_bp.actualizar_placa', placa_id=placa.id) }}"
-                              class="d-flex gap-2">
-                            <input type="text" name="propietario"
-                                   class="form-control form-control-sm"
-                                   value="{{ placa.propietario or '' }}"
-                                   placeholder="Chofer">
-                    </td>
+            <!-- inputs por ID -->
+            <td>
+              <input type="text"
+                     class="form-control form-control-sm"
+                     name="propietario[{{ placa.id }}]"
+                     value="{{ placa.propietario or '' }}"
+                     placeholder="Chofer">
+            </td>
 
-                    <td>
-                            <input type="text" name="color_cabezal"
-                                   class="form-control form-control-sm"
-                                   value="{{ placa.color_cabezal or '' }}"
-                                   placeholder="Ej: Rojo">
-                    </td>
+            <td>
+              <input type="text"
+                     class="form-control form-control-sm"
+                     name="color_cabezal[{{ placa.id }}]"
+                     value="{{ placa.color_cabezal or '' }}"
+                     placeholder="Ej: Rojo">
+            </td>
 
-                    <td>{{ placa.usuario.nombre if placa.usuario else '—' }}</td>
-                    <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>{{ placa.usuario.nombre if placa.usuario else '—' }}</td>
+            <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
 
-                    <!-- ✅ Estado (como estaba antes) -->
-                    <td>
-                        <form method="POST" action="{{ url_for('placa_bp.cambiar_estado', placa_id=placa.id) }}"
-                              class="d-flex align-items-center">
-                            <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <option value="Activa" {% if placa.estado == 'Activa' %}selected{% endif %}>Activa</option>
-                                <option value="Inactiva" {% if placa.estado == 'Inactiva' %}selected{% endif %}>Inactiva</option>
-                            </select>
-                        </form>
-                    </td>
-
-                    <!-- ✅ Botón guardar del form actualizar -->
-                    <td class="text-end">
-                            <button type="submit" class="btn btn-sm btn-success">💾 Guardar</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-
-        </table>
+            <!-- Estado se deja como antes (guarda al cambiar) -->
+            <td>
+              <form method="POST" action="{{ url_for('placa_bp.cambiar_estado', placa_id=placa.id) }}"
+                    class="d-flex align-items-center">
+                <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
+                  <option value="Activa" {% if placa.estado == 'Activa' %}selected{% endif %}>Activa</option>
+                  <option value="Inactiva" {% if placa.estado == 'Inactiva' %}selected{% endif %}>Inactiva</option>
+                </select>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    {% else %}
-    <div class="alert alert-info text-center mt-4">
-        No hay placas registradas aún.
+
+    <!-- ✅ UN SOLO BOTÓN AL FINAL -->
+    <div class="d-flex justify-content-end mt-3">
+      <button type="submit" class="btn btn-success">
+        💾 Guardar cambios
+      </button>
     </div>
-    {% endif %}
+  </form>
+
+  {% else %}
+  <div class="alert alert-info text-center mt-4">
+    No hay placas registradas aún.
+  </div>
+  {% endif %}
 </div>
 
 <script>
 document.getElementById("buscadorPlacas").addEventListener("keyup", function() {
-    const filtro = this.value.toLowerCase();
-    const filas = document.querySelectorAll("#tablaPlacas tbody tr.fila-placa");
-    filas.forEach(fila => {
-        fila.style.display = fila.innerText.toLowerCase().includes(filtro) ? "" : "none";
-    });
+  const filtro = this.value.toLowerCase();
+  const filas = document.querySelectorAll("#tablaPlacas tbody tr.fila-placa");
+  filas.forEach(fila => {
+    fila.style.display = fila.innerText.toLowerCase().includes(filtro) ? "" : "none";
+  });
 });
 </script>
 
