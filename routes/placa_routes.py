@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from models.base import db
 from models.placa import Placa
@@ -22,47 +22,47 @@ def listar_placas():
 @login_required
 def nueva_placa():
     try:
-        numero_placa = request.form.get("numero_placa")
-        propietario = request.form.get("propietario", None)
-
-        # ✅ NUEVO: color del cabezal
-        color_cabezal = request.form.get("color_cabezal", "").strip() or None
+        numero_placa = (request.form.get("numero_placa") or "").strip().upper()
+        propietario = (request.form.get("propietario") or "").strip() or None
+        color_cabezal = (request.form.get("color_cabezal") or "").strip() or None
 
         if not numero_placa:
             flash("Debe ingresar un número de placa.", "warning")
             return redirect(url_for("placa_bp.listar_placas"))
 
         # Verificar duplicados
-        if Placa.query.filter_by(numero_placa=numero_placa.upper().strip()).first():
+        if Placa.query.filter_by(numero_placa=numero_placa).first():
             flash("Esta placa ya está registrada.", "danger")
             return redirect(url_for("placa_bp.listar_placas"))
 
         nueva = Placa(
-            numero_placa=numero_placa.upper().strip(),
+            numero_placa=numero_placa,
             propietario=propietario,
-            color_cabezal=color_cabezal,  # ✅ NUEVO
+            color_cabezal=color_cabezal,
             usuario_id=current_user.id if current_user else None
         )
+
         db.session.add(nueva)
         db.session.commit()
 
-        flash(f"Placa {numero_placa.upper()} agregada exitosamente.", "success")
+        flash(f"Placa {numero_placa} agregada exitosamente.", "success")
         return redirect(url_for("placa_bp.listar_placas"))
 
     except Exception as e:
+        db.session.rollback()
         current_app.logger.exception(f"Error al agregar placa: {e}")
-        flash("Error al registrar la placa.", "danger")
+        flash(f"Error al registrar la placa: {str(e)}", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
 
-# ---- ✅ NUEVO: Actualizar datos de placa (propietario y color) ----
+# ---- Actualizar datos de placa (propietario y color) ----
 @placa_bp.route("/actualizar/<int:placa_id>", methods=["POST"])
 @login_required
 def actualizar_placa(placa_id):
     try:
         placa = Placa.query.get_or_404(placa_id)
 
-        propietario = request.form.get("propietario", "").strip() or None
-        color_cabezal = request.form.get("color_cabezal", "").strip() or None
+        propietario = (request.form.get("propietario") or "").strip() or None
+        color_cabezal = (request.form.get("color_cabezal") or "").strip() or None
 
         placa.propietario = propietario
         placa.color_cabezal = color_cabezal
@@ -72,8 +72,9 @@ def actualizar_placa(placa_id):
         return redirect(url_for("placa_bp.listar_placas"))
 
     except Exception as e:
+        db.session.rollback()
         current_app.logger.exception(f"Error al actualizar placa: {e}")
-        flash("Error al actualizar la placa.", "danger")
+        flash(f"Error al actualizar la placa: {str(e)}", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
 
 # ---- Cambiar estado (Activa / Inactiva) ----
@@ -82,7 +83,7 @@ def actualizar_placa(placa_id):
 def cambiar_estado(placa_id):
     try:
         placa = Placa.query.get_or_404(placa_id)
-        nuevo_estado = request.form.get("estado")
+        nuevo_estado = (request.form.get("estado") or "").strip()
 
         if nuevo_estado not in ["Activa", "Inactiva"]:
             flash("Estado inválido.", "warning")
@@ -93,7 +94,9 @@ def cambiar_estado(placa_id):
 
         flash(f"Estado de la placa {placa.numero_placa} cambiado a {nuevo_estado}.", "info")
         return redirect(url_for("placa_bp.listar_placas"))
+
     except Exception as e:
+        db.session.rollback()
         current_app.logger.exception(f"Error al cambiar estado de placa: {e}")
-        flash("Error al actualizar el estado de la placa.", "danger")
+        flash(f"Error al actualizar el estado de la placa: {str(e)}", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
