@@ -24,8 +24,11 @@
             <div class="card text-center shadow-sm border-0">
                 <div class="card-body">
                     <h5 class="card-title text-success fw-bold">📦 Operaciones</h5>
-                    <p class="card-text text-muted">Controla las salidas y llegadas.</p>
-                    <a href="{{ url_for('operacion_bp.historial_operaciones') }}" class="btn btn-outline-success btn-sm">Ver historial</a>
+                    <p class="card-text text-muted">Operaciones activas (en proceso).</p>
+                    <!-- ✅ FIX: este endpoint sí existe -->
+                    <a href="{{ url_for('operacion_bp.listar_operaciones') }}" class="btn btn-outline-success btn-sm">
+                        Ver operaciones
+                    </a>
                 </div>
             </div>
         </div>
@@ -34,8 +37,10 @@
             <div class="card text-center shadow-sm border-0">
                 <div class="card-body">
                     <h5 class="card-title text-warning fw-bold">📋 Movimientos</h5>
-                    <p class="card-text text-muted">Consulta los movimientos intermedios.</p>
-                    <a href="{{ url_for('movimiento_bp.listar_movimientos') }}" class="btn btn-outline-warning btn-sm">Ver movimientos</a>
+                    <p class="card-text text-muted">Historial de operaciones finalizadas.</p>
+                    <a href="{{ url_for('movimiento_bp.listar_movimientos') }}" class="btn btn-outline-warning btn-sm">
+                        Ver historial
+                    </a>
                 </div>
             </div>
         </div>
