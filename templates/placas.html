@@ -7,7 +7,6 @@
     <h2 class="fw-bold">🚛 Placas registradas</h2>
 
     {% if placas %}
-    <!-- ✅ ÚNICO BOTÓN EDITAR -->
     <button id="btnEditar" type="button" class="btn btn-outline-primary">
       ✏️ Editar
     </button>
@@ -18,13 +17,19 @@
   <div class="card mb-4 shadow-sm">
     <div class="card-body">
       <form method="POST" action="{{ url_for('placa_bp.nueva_placa') }}" class="row g-2">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <input type="text" name="numero_placa" class="form-control" placeholder="Placa" required>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <input type="text" name="propietario" class="form-control" placeholder="Chofer">
         </div>
+
+        <!-- ✅ NUEVO -->
         <div class="col-md-3">
+          <input type="text" name="identificador_fijo" class="form-control" placeholder="Identificador (opcional)">
+        </div>
+
+        <div class="col-md-2">
           <input type="text" name="color_cabezal" class="form-control" placeholder="Color cabezal (ej: Rojo)">
         </div>
         <div class="col-md-1 d-grid">
@@ -38,11 +43,10 @@
   <div class="input-group mb-3">
     <span class="input-group-text">🔍 Buscar</span>
     <input type="text" id="buscadorPlacas" class="form-control"
-           placeholder="Buscar por placa, chofer, color, estado, usuario…">
+           placeholder="Buscar por placa, identificador, chofer, color, estado, usuario…">
   </div>
 
   {% if placas %}
-  <!-- ✅ UN SOLO FORM PARA TODA LA TABLA -->
   <form method="POST" action="{{ url_for('placa_bp.actualizar_placas_batch') }}" id="formBatch">
     <div class="table-responsive">
       <table class="table table-hover align-middle shadow-sm" id="tablaPlacas">
@@ -50,6 +54,7 @@
           <tr>
             <th>ID</th>
             <th>Número de placa</th>
+            <th>Identificador</th>
             <th>Chofer</th>
             <th>Color cabezal</th>
             <th>Registrado por</th>
@@ -63,6 +68,15 @@
           <tr class="fila-placa">
             <td>{{ placa.id }}</td>
             <td class="fw-bold">{{ placa.numero_placa }}</td>
+
+            <td>
+              <input type="text"
+                     class="form-control form-control-sm editable"
+                     name="identificador_fijo[{{ placa.id }}]"
+                     value="{{ placa.identificador_fijo or '' }}"
+                     placeholder="Identificador"
+                     disabled>
+            </td>
 
             <td>
               <input type="text"
@@ -85,7 +99,6 @@
             <td>{{ placa.usuario.nombre if placa.usuario else '—' }}</td>
             <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
 
-            <!-- ✅ Estado también en batch (SIN form aparte) -->
             <td>
               <select name="estado[{{ placa.id }}]"
                       class="form-select form-select-sm editable"
@@ -100,7 +113,6 @@
       </table>
     </div>
 
-    <!-- ✅ UN SOLO BOTÓN GUARDAR AL FINAL (aparece al editar) -->
     <div class="d-flex justify-content-end mt-3">
       <button id="btnGuardar" type="submit" class="btn btn-success d-none">
         💾 Guardar cambios
@@ -125,7 +137,7 @@
     });
   });
 
-  // Editar / Guardar (solo si existe btnEditar)
+  // Editar / Guardar
   const btnEditar = document.getElementById("btnEditar");
   const btnGuardar = document.getElementById("btnGuardar");
   const editables = document.querySelectorAll(".editable");

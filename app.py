@@ -44,7 +44,7 @@ def create_app():
 
     # Registro de Blueprints
     app.register_blueprint(auth_bp)
-    app.register_blueprint(placa_bp)
+    app.register_blueprint(placa_bp, url_prefix="/placas")
     app.register_blueprint(operacion_bp)
     app.register_blueprint(movimiento_bp)
     app.register_blueprint(notificacion_bp)

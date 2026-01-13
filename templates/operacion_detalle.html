@@ -4,7 +4,6 @@
 {% block content %}
 <div class="container mt-4">
 
-    <!-- Encabezado -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="fw-bold">
             ⚓ Detalle de Operación: {{ operacion.nombre }}
@@ -36,51 +35,160 @@
 
     {% if operacion.estado == 'en_proceso' %}
 
-        {% set permite_salida = 
+        {% set permite_salida =
             (rol == 'Admin') or
             (rol == 'UsuarioPredio' and operacion.tipo_operacion == 'exportacion') or
             (rol == 'UsuarioMuelle' and operacion.tipo_operacion == 'importacion')
         %}
 
         {% if permite_salida %}
-        <!-- Formulario para agregar un nuevo movimiento -->
         <div class="card mb-4 shadow-sm">
             <div class="card-body">
                 <h5 class="card-title mb-3 fw-bold">🚛 Agregar movimiento (Salida)</h5>
 
-                <form method="POST" action="{{ url_for('operacion_bp.agregar_movimiento', operacion_id=operacion.id) }}" class="row g-2">
+                <form method="POST"
+                      action="{{ url_for('operacion_bp.agregar_movimiento', operacion_id=operacion.id) }}"
+                      class="row g-2"
+                      id="formNuevoMovimiento">
 
-                    <!-- 🔹 Selector de placas activas con buscador -->
                     <div class="col-md-4">
-                        <select name="placa_id"
-                                class="selectpicker form-control"
-                                data-live-search="true"
-                                data-size="7"
-                                title="Buscar placa..."
-                                required>
-                            {% for placa in placas %}
-                                {% if placa.estado == 'Activa' %}
-                                    <option value="{{ placa.id }}">{{ placa.numero_placa }}</option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
+                        <label class="form-label mb-1">Identificador</label>
+                        <div class="input-group">
+                            <input type="text"
+                                   id="identificador"
+                                   class="form-control"
+                                   placeholder="Seleccionar identificador..."
+                                   readonly
+                                   required>
+                            <button type="button" class="btn btn-outline-primary" onclick="openIdentModal()">
+                                Buscar
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="col-md-6">
+                    <div class="col-md-4">
+                        <label class="form-label mb-1">Placa (automática)</label>
+                        <input type="text"
+                               id="placa_text"
+                               class="form-control"
+                               placeholder="Se llena al elegir identificador"
+                               readonly>
+                        <input type="hidden" id="placa_id" name="placa_id" required>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label mb-1">N° Identificador</label>
                         <input type="text"
                                name="contenedor"
+                               id="contenedor"
                                class="form-control"
-                               placeholder="Número identificador"
+                               readonly
                                required>
                     </div>
 
                     <div class="col-md-2 d-grid">
+                        <label class="form-label mb-1">&nbsp;</label>
                         <button type="submit" class="btn btn-primary">Agregar</button>
                     </div>
 
                 </form>
             </div>
         </div>
+
+        <!-- Modal buscador -->
+        <div class="modal fade" id="identModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Buscar Identificador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+
+              <div class="modal-body">
+                <input id="ident_q" class="form-control" placeholder="Escribí el identificador...">
+                <div class="mt-3 list-group" id="ident_results"></div>
+                <div class="form-text mt-2">
+                  Solo aparecen identificadores ligados a una placa activa.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <script>
+        let identTimer = null;
+
+        function openIdentModal(){
+          const modal = new bootstrap.Modal(document.getElementById("identModal"));
+          modal.show();
+          setTimeout(() => document.getElementById("ident_q").focus(), 150);
+        }
+
+        document.addEventListener("input", (e) => {
+          if (e.target && e.target.id === "ident_q") {
+            clearTimeout(identTimer);
+            identTimer = setTimeout(() => buscarIdentificador(e.target.value), 200);
+          }
+        });
+
+        async function buscarIdentificador(q){
+          q = (q || "").trim();
+          const box = document.getElementById("ident_results");
+          box.innerHTML = "";
+
+          if(!q){
+            box.innerHTML = `<div class="text-muted">Escribí para buscar…</div>`;
+            return;
+          }
+
+          // ✅ con url_prefix="/placas"
+          const resp = await fetch(`/placas/buscar-identificador?q=${encodeURIComponent(q)}`);
+          const data = await resp.json();
+
+          if(!data.length){
+            box.innerHTML = `<div class="text-muted">Sin resultados</div>`;
+            return;
+          }
+
+          box.innerHTML = data.map(r => `
+            <button type="button" class="list-group-item list-group-item-action"
+              onclick="selectIdent('${escapeHtml(r.identificador)}', ${r.id}, '${escapeHtml(r.placa)}')">
+              <div class="d-flex justify-content-between">
+                <div><strong>${escapeHtml(r.identificador)}</strong> — ${escapeHtml(r.placa)}</div>
+                <small class="text-muted">${escapeHtml(r.propietario || '')}</small>
+              </div>
+            </button>
+          `).join("");
+        }
+
+        function selectIdent(ident, placaId, placa){
+          document.getElementById("identificador").value = ident;
+          document.getElementById("placa_text").value = placa;
+
+          document.getElementById("placa_id").value = placaId;
+
+          // Guardamos identificador en el campo existente (mov.contenedor)
+          document.getElementById("contenedor").value = ident;
+
+          bootstrap.Modal.getInstance(document.getElementById("identModal")).hide();
+        }
+
+        function escapeHtml(s){
+          return (s || "").replace(/[&<>"']/g, m => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+          }[m]));
+        }
+
+        document.getElementById("formNuevoMovimiento")?.addEventListener("submit", (e) => {
+          const pid = document.getElementById("placa_id").value;
+          const cont = document.getElementById("contenedor").value;
+          if(!pid || !cont){
+            e.preventDefault();
+            alert("Seleccioná un identificador para cargar la placa automáticamente.");
+          }
+        });
+        </script>
+
         {% endif %}
     {% endif %}
 
@@ -104,7 +212,7 @@
                 {% if movimientos %}
                     {% for mov in movimientos %}
 
-                    {% set permite_finalizar = 
+                    {% set permite_finalizar =
                         (rol == 'Admin') or
                         (rol == 'UsuarioPredio' and operacion.tipo_operacion == 'importacion') or
                         (rol == 'UsuarioMuelle' and operacion.tipo_operacion == 'exportacion')

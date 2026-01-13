@@ -16,6 +16,10 @@ class Placa(db.Model):
     # ✅ NUEVO: Color del cabezal (opcional)
     color_cabezal = db.Column(db.String(30), nullable=True)
 
+    # ✅ NUEVO: Identificador fijo ligado a la placa (opcional)
+    # (si el identificador está ligado a una sola placa, lo dejamos UNIQUE)
+    identificador_fijo = db.Column(db.String(50), unique=True, nullable=True, index=True)
+
     estado = db.Column(db.String(20), default="Activa")  # 👈 Mayúscula inicial estándar
     fecha_registro = db.Column(
         db.DateTime,

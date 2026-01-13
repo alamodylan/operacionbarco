@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_required, current_user
 from models.base import db
 from models.placa import Placa
@@ -26,19 +26,28 @@ def nueva_placa():
         propietario = (request.form.get("propietario") or "").strip() or None
         color_cabezal = (request.form.get("color_cabezal") or "").strip() or None
 
+        # ✅ NUEVO: identificador fijo (opcional)
+        identificador_fijo = (request.form.get("identificador_fijo") or "").strip().upper() or None
+
         if not numero_placa:
             flash("Debe ingresar un número de placa.", "warning")
             return redirect(url_for("placa_bp.listar_placas"))
 
-        # Verificar duplicados
+        # Verificar duplicados de placa
         if Placa.query.filter_by(numero_placa=numero_placa).first():
             flash("Esta placa ya está registrada.", "danger")
+            return redirect(url_for("placa_bp.listar_placas"))
+
+        # ✅ Verificar duplicado de identificador (si viene)
+        if identificador_fijo and Placa.query.filter_by(identificador_fijo=identificador_fijo).first():
+            flash("Ese identificador ya está ligado a otra placa.", "danger")
             return redirect(url_for("placa_bp.listar_placas"))
 
         nueva = Placa(
             numero_placa=numero_placa,
             propietario=propietario,
             color_cabezal=color_cabezal,
+            identificador_fijo=identificador_fijo,
             usuario_id=current_user.id if current_user else None
         )
 
@@ -54,7 +63,7 @@ def nueva_placa():
         flash(f"Error al registrar la placa: {str(e)}", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
 
-# ---- Actualizar datos de placa (propietario y color) ----
+# ---- Actualizar datos de placa (propietario, color, identificador) ----
 @placa_bp.route("/actualizar/<int:placa_id>", methods=["POST"])
 @login_required
 def actualizar_placa(placa_id):
@@ -64,8 +73,21 @@ def actualizar_placa(placa_id):
         propietario = (request.form.get("propietario") or "").strip() or None
         color_cabezal = (request.form.get("color_cabezal") or "").strip() or None
 
+        # ✅ NUEVO: identificador fijo (opcional)
+        identificador_fijo = (request.form.get("identificador_fijo") or "").strip().upper() or None
+
+        # ✅ Validación: identificador único (si viene)
+        if identificador_fijo:
+            dup = (Placa.query
+                   .filter(Placa.identificador_fijo == identificador_fijo, Placa.id != placa.id)
+                   .first())
+            if dup:
+                flash(f"❌ Ese identificador ya está ligado a la placa {dup.numero_placa}.", "danger")
+                return redirect(url_for("placa_bp.listar_placas"))
+
         placa.propietario = propietario
         placa.color_cabezal = color_cabezal
+        placa.identificador_fijo = identificador_fijo
 
         db.session.commit()
         flash(f"Placa {placa.numero_placa} actualizada correctamente.", "success")
@@ -100,14 +122,14 @@ def cambiar_estado(placa_id):
         current_app.logger.exception(f"Error al cambiar estado de placa: {e}")
         flash(f"Error al actualizar el estado de la placa: {str(e)}", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
-# ---- ✅ NUEVO: Guardar cambios en lote (un solo Guardar para toda la tabla) ----
+
+# ---- ✅ Guardar cambios en lote ----
 @placa_bp.route("/actualizar_batch", methods=["POST"])
 @login_required
 def actualizar_placas_batch():
     try:
         updates = {}
 
-        # request.form trae keys tipo: propietario[26], color_cabezal[26], estado[26]
         for key, value in request.form.items():
             if key.startswith("propietario["):
                 placa_id = int(key.split("[", 1)[1].split("]")[0])
@@ -123,14 +145,46 @@ def actualizar_placas_batch():
                 if estado in ["Activa", "Inactiva"]:
                     updates.setdefault(placa_id, {})["estado"] = estado
 
+            elif key.startswith("identificador_fijo["):
+                placa_id = int(key.split("[", 1)[1].split("]")[0])
+                ident = value.strip().upper()
+                updates.setdefault(placa_id, {})["identificador_fijo"] = ident or None
+
         if not updates:
             flash("No hay cambios para guardar.", "info")
             return redirect(url_for("placa_bp.listar_placas"))
 
-        # Traer todas las placas involucradas en una sola consulta
         ids = list(updates.keys())
         placas = Placa.query.filter(Placa.id.in_(ids)).all()
         placas_por_id = {p.id: p for p in placas}
+
+        # Validación duplicados (form + DB)
+        nuevos_ident_por_pid = {}
+        for pid, data in updates.items():
+            if "identificador_fijo" in data:
+                nuevos_ident_por_pid[pid] = data["identificador_fijo"]
+
+        # 1) duplicados dentro del mismo batch
+        seen = {}
+        for pid, ident in nuevos_ident_por_pid.items():
+            if not ident:
+                continue
+            if ident in seen and seen[ident] != pid:
+                flash(f"❌ Identificador repetido en el formulario: {ident}.", "danger")
+                return redirect(url_for("placa_bp.listar_placas"))
+            seen[ident] = pid
+
+        # 2) duplicados contra DB
+        idents = [i for i in nuevos_ident_por_pid.values() if i]
+        if idents:
+            existentes = Placa.query.filter(Placa.identificador_fijo.in_(idents)).all()
+            for p in existentes:
+                pid_form = seen.get(p.identificador_fijo)
+                if pid_form is None:
+                    continue
+                if p.id != pid_form:
+                    flash(f"❌ El identificador {p.identificador_fijo} ya está ligado a la placa {p.numero_placa}.", "danger")
+                    return redirect(url_for("placa_bp.listar_placas"))
 
         # Aplicar cambios
         for pid, data in updates.items():
@@ -147,6 +201,9 @@ def actualizar_placas_batch():
             if "estado" in data:
                 p.estado = data["estado"]
 
+            if "identificador_fijo" in data:
+                p.identificador_fijo = data["identificador_fijo"]
+
         db.session.commit()
         flash("✅ Cambios guardados correctamente.", "success")
         return redirect(url_for("placa_bp.listar_placas"))
@@ -156,3 +213,31 @@ def actualizar_placas_batch():
         current_app.logger.exception(f"Error en actualizar_placas_batch: {e}")
         flash(f"❌ Error al guardar cambios: {str(e)}", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
+
+# ---- ✅ NUEVO: Buscar identificadores (para Operación Barco) ----
+@placa_bp.route("/buscar-identificador", methods=["GET"])
+@login_required
+def buscar_identificador():
+    try:
+        q = (request.args.get("q") or "").strip().upper()
+        if not q:
+            return jsonify([])
+
+        rows = (Placa.query
+                .filter(Placa.estado == "Activa")
+                .filter(Placa.identificador_fijo.isnot(None))
+                .filter(Placa.identificador_fijo.ilike(f"%{q}%"))
+                .order_by(Placa.identificador_fijo.asc())
+                .limit(20)
+                .all())
+
+        return jsonify([{
+            "id": r.id,
+            "identificador": r.identificador_fijo,
+            "placa": r.numero_placa,
+            "propietario": r.propietario
+        } for r in rows])
+
+    except Exception as e:
+        current_app.logger.exception(f"Error en buscar_identificador: {e}")
+        return jsonify([]), 200

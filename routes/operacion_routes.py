@@ -41,7 +41,7 @@ def listar_operaciones():
 def nueva_operacion():
     try:
         nombre = request.form.get("nombre")
-        tipo_operacion = request.form.get("tipo_operacion")  # exportacion / importacion
+        tipo_operacion = request.form.get("tipo_operacion")  
 
         if not nombre or not tipo_operacion:
             flash("Debe ingresar nombre y tipo de operación.", "warning")
@@ -107,30 +107,43 @@ def detalle_operacion(operacion_id):
 def agregar_movimiento(operacion_id):
     try:
         placa_id = request.form.get("placa_id")
-        contenedor = request.form.get("contenedor")
 
-        if not placa_id or not contenedor:
-            flash("Debe seleccionar una placa activa y escribir el número de contenedor.", "warning")
+        if not placa_id:
+            flash("Debe seleccionar un identificador para cargar la placa automáticamente.", "warning")
+            return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
+
+        # ✅ Seguridad: traer placa real desde DB
+        placa = Placa.query.get_or_404(int(placa_id))
+
+        # ✅ Validar que la placa esté activa
+        if (placa.estado or "").lower() != "activa":
+            flash("La placa seleccionada no está activa.", "warning")
+            return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
+
+        # ✅ Fuente de verdad: identificador fijo ligado a la placa
+        identificador = (placa.identificador_fijo or "").strip().upper()
+
+        if not identificador:
+            flash("Esa placa no tiene identificador ligado. Ligalo en Gestión de Placas.", "danger")
             return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
         nuevo_mov = MovimientoBarco(
             operacion_id=operacion_id,
-            placa_id=placa_id,
-            contenedor=contenedor.strip().upper(),
+            placa_id=placa.id,
+            contenedor=identificador,  # 👈 aquí se guarda el identificador fijo
             hora_salida=datetime.now(CR_TZ).replace(tzinfo=None),
             estado="en_ruta",
-            ultima_notificacion=None  # necesario para la alerta de emergencia
+            ultima_notificacion=None
         )
 
         db.session.add(nuevo_mov)
         db.session.commit()
 
-        # ❌ YA NO SE ENVÍA NOTIFICACIÓN AQUÍ
-
-        flash(f"Movimiento agregado correctamente para el contenedor {contenedor}.", "success")
+        flash(f"Movimiento agregado correctamente para el identificador {identificador}.", "success")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
     except Exception as e:
+        db.session.rollback()
         current_app.logger.exception(f"Error al agregar movimiento: {e}")
         flash("Error al agregar movimiento.", "danger")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))

@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, current_app, render_template
-from flask_login import login_required
+from flask_login import login_required, current_user
 from models.notificacion import enviar_notificacion
 from models.movimiento import MovimientoBarco
 from models.placa import Placa
@@ -9,6 +9,10 @@ import pytz
 import os
 from pywebpush import webpush, WebPushException
 import json
+
+# ✅ NUEVO: modelo para guardar suscripciones en PostgreSQL (persistente)
+from models.push_subscription import PushSubscription
+
 
 # -----------------------------------------------------------
 # Blueprint
@@ -51,6 +55,7 @@ def guardar_ultima_alerta(titulo: str, mensaje: str):
 
 # -----------------------------------------------------------
 # Enviar Push usando el MISMO mensaje que WhatsApp
+# ✅ CAMBIO MÍNIMO: ya NO usa push_subs.json, usa PostgreSQL
 # -----------------------------------------------------------
 def enviar_push_mismo_mensaje(
     mensaje: str,
@@ -58,34 +63,30 @@ def enviar_push_mismo_mensaje(
     url: str = "/notificaciones/alerta"
 ) -> dict:
     try:
-        ruta = os.path.join(current_app.root_path, "push_subs.json")
-        if not os.path.exists(ruta):
-            return {"enviados": 0, "fallidos": 0}
-
-        with open(ruta, "r", encoding="utf-8") as f:
-            subs = json.load(f) or []
-
         vapid_private = os.getenv("VAPID_PRIVATE_KEY", "")
         vapid_subject = os.getenv("VAPID_SUBJECT", "mailto:ti@alamo.com")
 
-        if not vapid_private or not subs:
+        if not vapid_private:
+            return {"enviados": 0, "fallidos": 0}
+
+        subs = PushSubscription.query.all()
+        if not subs:
             return {"enviados": 0, "fallidos": 0}
 
         payload = json.dumps({
             "title": titulo,
             "body": _push_text(mensaje),
-            "url": "/notificaciones/alerta"
+            "url": url
         })
 
         enviados, fallidos = 0, 0
-        vivos = []
 
         for s in subs:
             sub_info = {
-                "endpoint": s["endpoint"],
+                "endpoint": s.endpoint,
                 "keys": {
-                    "p256dh": s["p256dh"],
-                    "auth": s["auth"]
+                    "p256dh": s.p256dh,
+                    "auth": s.auth
                 }
             }
             try:
@@ -96,17 +97,21 @@ def enviar_push_mismo_mensaje(
                     vapid_claims={"sub": vapid_subject}
                 )
                 enviados += 1
-                vivos.append(s)
+                s.last_seen = datetime.utcnow()
+
             except WebPushException:
+                # endpoint muerto => lo borramos para que no estorbe
                 fallidos += 1
+                try:
+                    db.session.delete(s)
+                except Exception:
+                    pass
 
-        # limpiar endpoints muertos
-        with open(ruta, "w", encoding="utf-8") as f:
-            json.dump(vivos, f, ensure_ascii=False, indent=2)
-
+        db.session.commit()
         return {"enviados": enviados, "fallidos": fallidos}
 
     except Exception:
+        db.session.rollback()
         current_app.logger.exception("Error enviando push")
         return {"enviados": 0, "fallidos": 0}
 
@@ -225,11 +230,9 @@ def alerta_emergencia():
                     "🚨 *ALERTA DE ORDEN INCORRECTO*\n\n"
                     "Un viaje salió antes y aún no ha llegado,\n"
                     "pero otro posterior ya fue cerrado.\n\n"
-
                     f"🚛 Placa retrasada: {placa_x.numero_placa}\n"
                     f"🎨 Color cabezal: {placa_x.color_cabezal or 'No registrado'}\n"
                     f"📦 Contenedor: {mov_x.contenedor}\n\n"
-
                     f"🚛 Placa que cerró antes: {placa_y.numero_placa}\n"
                     f"🎨 Color cabezal: {placa_y.color_cabezal or 'No registrado'}"
                 )
@@ -250,56 +253,83 @@ def alerta_emergencia():
 
 # -----------------------------------------------------------
 # PUSH: SUSCRIBIR DISPOSITIVO
+# ✅ CAMBIO MÍNIMO: guarda en PostgreSQL (persistente)
+# ✅ NUEVO: rescate automático si aún existe push_subs.json
 # -----------------------------------------------------------
 @notificacion_bp.route("/api/push/subscribe", methods=["POST"])
 @login_required
 def push_subscribe():
-    data = request.get_json() or {}
-    endpoint = data.get("endpoint")
-    keys = data.get("keys") or {}
+    try:
+        data = request.get_json() or {}
+        endpoint = data.get("endpoint")
+        keys = data.get("keys") or {}
 
-    if not endpoint or not keys.get("p256dh") or not keys.get("auth"):
-        return jsonify({"error": "Suscripción inválida"}), 400
+        p256dh = keys.get("p256dh")
+        auth = keys.get("auth")
 
-    ruta = os.path.join(current_app.root_path, "push_subs.json")
-    subs = []
+        if not endpoint or not p256dh or not auth:
+            return jsonify({"error": "Suscripción inválida"}), 400
 
-    if os.path.exists(ruta):
+        # ♻️ RESCATE AUTOMÁTICO:
+        # Si todavía existe push_subs.json (deploy viejo), lo migra a Postgres
+        # sin afectar el flujo normal.
         try:
-            with open(ruta, "r", encoding="utf-8") as f:
-                subs = json.load(f)
+            ruta_json = os.path.join(current_app.root_path, "push_subs.json")
+            if os.path.exists(ruta_json):
+                with open(ruta_json, "r", encoding="utf-8") as f:
+                    subs_json = json.load(f) or []
+
+                for s in subs_json:
+                    ep = s.get("endpoint")
+                    p = s.get("p256dh")
+                    a = s.get("auth")
+                    if not ep or not p or not a:
+                        continue
+
+                    existe = PushSubscription.query.filter_by(endpoint=ep).first()
+                    if not existe:
+                        db.session.add(PushSubscription(endpoint=ep, p256dh=p, auth=a))
+
+                db.session.commit()
         except Exception:
-            subs = []
+            db.session.rollback()
+            # Es respaldo, no tumbamos el subscribe
+            pass
 
-    subs = [s for s in subs if s.get("endpoint") != endpoint]
-    subs.append({
-        "endpoint": endpoint,
-        "p256dh": keys["p256dh"],
-        "auth": keys["auth"]
-    })
+        sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
+        if not sub:
+            sub = PushSubscription(endpoint=endpoint, p256dh=p256dh, auth=auth)
+            db.session.add(sub)
+        else:
+            sub.p256dh = p256dh
+            sub.auth = auth
+            sub.last_seen = datetime.utcnow()
 
-    with open(ruta, "w", encoding="utf-8") as f:
-        json.dump(subs, f, ensure_ascii=False, indent=2)
+        db.session.commit()
+        return "", 204
 
-    return "", 204
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Error guardando suscripción push")
+        return jsonify({"error": "No se pudo guardar la suscripción"}), 500
 
 # -----------------------------------------------------------
 # PUSH: ESTADO
+# ✅ CAMBIO MÍNIMO: cuenta desde PostgreSQL
 # -----------------------------------------------------------
 @notificacion_bp.route("/api/push/status", methods=["GET"])
 @login_required
 def push_status():
-    ruta = os.path.join(current_app.root_path, "push_subs.json")
-    if not os.path.exists(ruta):
+    try:
+        total = PushSubscription.query.count()
+        return jsonify({"dispositivos": total})
+    except Exception:
+        current_app.logger.exception("Error consultando status push")
         return jsonify({"dispositivos": 0})
-
-    with open(ruta, "r", encoding="utf-8") as f:
-        subs = json.load(f)
-
-    return jsonify({"dispositivos": len(subs)})
 
 # -----------------------------------------------------------
 # PUSH: PRUEBA MANUAL
+# (sin cambios, ya usa enviar_push_mismo_mensaje)
 # -----------------------------------------------------------
 @notificacion_bp.route("/api/push/send", methods=["POST"])
 @login_required
@@ -308,4 +338,68 @@ def push_send():
     mensaje = data.get("mensaje", "🔔 Push de prueba")
     r = enviar_push_mismo_mensaje(mensaje, "Operación Barco")
     return jsonify({"status": "ok", **r})
-    
+
+# -----------------------------------------------------------
+# ✅ MIGRACIÓN 1 VEZ: pasar push_subs.json -> PostgreSQL
+# ✅ PROTEGIDA: SOLO Admin
+# -----------------------------------------------------------
+@notificacion_bp.route("/api/push/migrate", methods=["POST"])
+@login_required
+def push_migrate():
+    """
+    Migra las suscripciones guardadas en push_subs.json hacia PostgreSQL.
+    Se ejecuta 1 vez y luego se recomienda borrar esta ruta.
+    """
+    try:
+        # 🔒 SOLO ADMIN
+        if getattr(current_user, "rol", "") != "Admin":
+            return jsonify({"ok": False, "error": "No autorizado"}), 403
+
+        ruta = os.path.join(current_app.root_path, "push_subs.json")
+        if not os.path.exists(ruta):
+            return jsonify({"ok": False, "error": "push_subs.json no existe", "migrados": 0}), 404
+
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                subs = json.load(f) or []
+        except Exception:
+            subs = []
+
+        if not subs:
+            return jsonify({"ok": True, "migrados": 0, "mensaje": "No hay suscripciones en push_subs.json"}), 200
+
+        migrados = 0
+        for s in subs:
+            endpoint = s.get("endpoint")
+            p256dh = s.get("p256dh")
+            auth = s.get("auth")
+
+            if not endpoint or not p256dh or not auth:
+                continue
+
+            existe = PushSubscription.query.filter_by(endpoint=endpoint).first()
+            if not existe:
+                db.session.add(PushSubscription(
+                    endpoint=endpoint,
+                    p256dh=p256dh,
+                    auth=auth
+                ))
+                migrados += 1
+            else:
+                # si ya existía, solo actualiza llaves
+                existe.p256dh = p256dh
+                existe.auth = auth
+                existe.last_seen = datetime.utcnow()
+
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "migrados": migrados,
+            "total_en_json": len(subs)
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Error migrando push_subs.json a PostgreSQL: {e}")
+        return jsonify({"ok": False, "error": "Fallo la migración"}), 500

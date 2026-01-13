@@ -118,9 +118,35 @@
 
     <!-- Tu JS nuevo -->
     <script>
-        // Ajustá esto cuando generemos tus claves VAPID (te lo doy en el siguiente paso)
         window.VAPID_PUBLIC_KEY = "{{ vapid_public_key|default('') }}";
     </script>
+
     <script src="{{ url_for('static', filename='js/push.js') }}"></script>
+
+    <!-- ✅ NUEVO: Sync silencioso (sin pedir permisos, sin botón) -->
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        try {
+          if (!("serviceWorker" in navigator)) return;
+
+          // registra/asegura SW
+          const registro = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+
+          // si ya existe suscripción en el navegador, la re-guardamos en backend
+          const subExistente = await registro.pushManager.getSubscription();
+          if (!subExistente) return;
+
+          await fetch("/notificaciones/api/push/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(subExistente)
+          });
+
+          // no mostramos alertas: esto es silencioso a propósito
+        } catch (e) {
+          console.log("Sync silencioso push falló:", e);
+        }
+      });
+    </script>
 </body>
 </html>
