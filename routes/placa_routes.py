@@ -100,3 +100,59 @@ def cambiar_estado(placa_id):
         current_app.logger.exception(f"Error al cambiar estado de placa: {e}")
         flash(f"Error al actualizar el estado de la placa: {str(e)}", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
+# ---- ✅ NUEVO: Guardar cambios en lote (un solo Guardar para toda la tabla) ----
+@placa_bp.route("/actualizar_batch", methods=["POST"])
+@login_required
+def actualizar_placas_batch():
+    try:
+        updates = {}
+
+        # request.form trae keys tipo: propietario[26], color_cabezal[26], estado[26]
+        for key, value in request.form.items():
+            if key.startswith("propietario["):
+                placa_id = int(key.split("[", 1)[1].split("]")[0])
+                updates.setdefault(placa_id, {})["propietario"] = value.strip() or None
+
+            elif key.startswith("color_cabezal["):
+                placa_id = int(key.split("[", 1)[1].split("]")[0])
+                updates.setdefault(placa_id, {})["color_cabezal"] = value.strip() or None
+
+            elif key.startswith("estado["):
+                placa_id = int(key.split("[", 1)[1].split("]")[0])
+                estado = value.strip()
+                if estado in ["Activa", "Inactiva"]:
+                    updates.setdefault(placa_id, {})["estado"] = estado
+
+        if not updates:
+            flash("No hay cambios para guardar.", "info")
+            return redirect(url_for("placa_bp.listar_placas"))
+
+        # Traer todas las placas involucradas en una sola consulta
+        ids = list(updates.keys())
+        placas = Placa.query.filter(Placa.id.in_(ids)).all()
+        placas_por_id = {p.id: p for p in placas}
+
+        # Aplicar cambios
+        for pid, data in updates.items():
+            p = placas_por_id.get(pid)
+            if not p:
+                continue
+
+            if "propietario" in data:
+                p.propietario = data["propietario"]
+
+            if "color_cabezal" in data:
+                p.color_cabezal = data["color_cabezal"]
+
+            if "estado" in data:
+                p.estado = data["estado"]
+
+        db.session.commit()
+        flash("✅ Cambios guardados correctamente.", "success")
+        return redirect(url_for("placa_bp.listar_placas"))
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Error en actualizar_placas_batch: {e}")
+        flash(f"❌ Error al guardar cambios: {str(e)}", "danger")
+        return redirect(url_for("placa_bp.listar_placas"))

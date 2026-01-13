@@ -5,6 +5,13 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="fw-bold">🚛 Placas registradas</h2>
+
+    {% if placas %}
+    <!-- ✅ ÚNICO BOTÓN EDITAR -->
+    <button id="btnEditar" type="button" class="btn btn-outline-primary">
+      ✏️ Editar
+    </button>
+    {% endif %}
   </div>
 
   <!-- Formulario para agregar nueva placa -->
@@ -36,7 +43,7 @@
 
   {% if placas %}
   <!-- ✅ UN SOLO FORM PARA TODA LA TABLA -->
-  <form method="POST" action="{{ url_for('placa_bp.actualizar_placas_batch') }}">
+  <form method="POST" action="{{ url_for('placa_bp.actualizar_placas_batch') }}" id="formBatch">
     <div class="table-responsive">
       <table class="table table-hover align-middle shadow-sm" id="tablaPlacas">
         <thead class="table-primary">
@@ -57,35 +64,35 @@
             <td>{{ placa.id }}</td>
             <td class="fw-bold">{{ placa.numero_placa }}</td>
 
-            <!-- inputs por ID -->
             <td>
               <input type="text"
-                     class="form-control form-control-sm"
+                     class="form-control form-control-sm editable"
                      name="propietario[{{ placa.id }}]"
                      value="{{ placa.propietario or '' }}"
-                     placeholder="Chofer">
+                     placeholder="Chofer"
+                     disabled>
             </td>
 
             <td>
               <input type="text"
-                     class="form-control form-control-sm"
+                     class="form-control form-control-sm editable"
                      name="color_cabezal[{{ placa.id }}]"
                      value="{{ placa.color_cabezal or '' }}"
-                     placeholder="Ej: Rojo">
+                     placeholder="Ej: Rojo"
+                     disabled>
             </td>
 
             <td>{{ placa.usuario.nombre if placa.usuario else '—' }}</td>
             <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
 
-            <!-- Estado se deja como antes (guarda al cambiar) -->
+            <!-- ✅ Estado también en batch (SIN form aparte) -->
             <td>
-              <form method="POST" action="{{ url_for('placa_bp.cambiar_estado', placa_id=placa.id) }}"
-                    class="d-flex align-items-center">
-                <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
-                  <option value="Activa" {% if placa.estado == 'Activa' %}selected{% endif %}>Activa</option>
-                  <option value="Inactiva" {% if placa.estado == 'Inactiva' %}selected{% endif %}>Inactiva</option>
-                </select>
-              </form>
+              <select name="estado[{{ placa.id }}]"
+                      class="form-select form-select-sm editable"
+                      disabled>
+                <option value="Activa" {% if placa.estado == 'Activa' %}selected{% endif %}>Activa</option>
+                <option value="Inactiva" {% if placa.estado == 'Inactiva' %}selected{% endif %}>Inactiva</option>
+              </select>
             </td>
           </tr>
           {% endfor %}
@@ -93,9 +100,9 @@
       </table>
     </div>
 
-    <!-- ✅ UN SOLO BOTÓN AL FINAL -->
+    <!-- ✅ UN SOLO BOTÓN GUARDAR AL FINAL (aparece al editar) -->
     <div class="d-flex justify-content-end mt-3">
-      <button type="submit" class="btn btn-success">
+      <button id="btnGuardar" type="submit" class="btn btn-success d-none">
         💾 Guardar cambios
       </button>
     </div>
@@ -109,13 +116,27 @@
 </div>
 
 <script>
-document.getElementById("buscadorPlacas").addEventListener("keyup", function() {
-  const filtro = this.value.toLowerCase();
-  const filas = document.querySelectorAll("#tablaPlacas tbody tr.fila-placa");
-  filas.forEach(fila => {
-    fila.style.display = fila.innerText.toLowerCase().includes(filtro) ? "" : "none";
+  // Buscador en vivo
+  document.getElementById("buscadorPlacas").addEventListener("keyup", function() {
+    const filtro = this.value.toLowerCase();
+    const filas = document.querySelectorAll("#tablaPlacas tbody tr.fila-placa");
+    filas.forEach(fila => {
+      fila.style.display = fila.innerText.toLowerCase().includes(filtro) ? "" : "none";
+    });
   });
-});
+
+  // Editar / Guardar (solo si existe btnEditar)
+  const btnEditar = document.getElementById("btnEditar");
+  const btnGuardar = document.getElementById("btnGuardar");
+  const editables = document.querySelectorAll(".editable");
+
+  if (btnEditar) {
+    btnEditar.addEventListener("click", () => {
+      editables.forEach(el => el.disabled = false);
+      btnGuardar.classList.remove("d-none");
+      btnEditar.disabled = true;
+    });
+  }
 </script>
 
 {% endblock %}
