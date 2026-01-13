@@ -187,6 +187,7 @@ class MovimientoBarco(db.Model):
                 f"El viaje que estaba en *EMERGENCIA* ha sido finalizado.\n\n"
                 f"📦 Identificador: {self.contenedor}\n"
                 f"🚛 Placa: {self.placa.numero_placa}\n"
+                f"🎨 Color cabezal: {self.placa.color_cabezal or 'No registrado'}\n"
                 f"👤 Chofer: {self.placa.propietario or 'No registrado'}\n"
                 f"🕒 Salida: {self.hora_salida.strftime('%d/%m/%Y %H:%M')}\n"
                 f"🏁 Llegada: {self.hora_llegada.strftime('%d/%m/%Y %H:%M')}\n"

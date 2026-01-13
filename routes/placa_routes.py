@@ -25,6 +25,9 @@ def nueva_placa():
         numero_placa = request.form.get("numero_placa")
         propietario = request.form.get("propietario", None)
 
+        # ✅ NUEVO: color del cabezal
+        color_cabezal = request.form.get("color_cabezal", "").strip() or None
+
         if not numero_placa:
             flash("Debe ingresar un número de placa.", "warning")
             return redirect(url_for("placa_bp.listar_placas"))
@@ -37,6 +40,7 @@ def nueva_placa():
         nueva = Placa(
             numero_placa=numero_placa.upper().strip(),
             propietario=propietario,
+            color_cabezal=color_cabezal,  # ✅ NUEVO
             usuario_id=current_user.id if current_user else None
         )
         db.session.add(nueva)
@@ -48,6 +52,28 @@ def nueva_placa():
     except Exception as e:
         current_app.logger.exception(f"Error al agregar placa: {e}")
         flash("Error al registrar la placa.", "danger")
+        return redirect(url_for("placa_bp.listar_placas"))
+
+# ---- ✅ NUEVO: Actualizar datos de placa (propietario y color) ----
+@placa_bp.route("/actualizar/<int:placa_id>", methods=["POST"])
+@login_required
+def actualizar_placa(placa_id):
+    try:
+        placa = Placa.query.get_or_404(placa_id)
+
+        propietario = request.form.get("propietario", "").strip() or None
+        color_cabezal = request.form.get("color_cabezal", "").strip() or None
+
+        placa.propietario = propietario
+        placa.color_cabezal = color_cabezal
+
+        db.session.commit()
+        flash(f"Placa {placa.numero_placa} actualizada correctamente.", "success")
+        return redirect(url_for("placa_bp.listar_placas"))
+
+    except Exception as e:
+        current_app.logger.exception(f"Error al actualizar placa: {e}")
+        flash("Error al actualizar la placa.", "danger")
         return redirect(url_for("placa_bp.listar_placas"))
 
 # ---- Cambiar estado (Activa / Inactiva) ----

@@ -11,13 +11,19 @@
     <div class="card mb-4 shadow-sm">
         <div class="card-body">
             <form method="POST" action="{{ url_for('placa_bp.nueva_placa') }}" class="row g-2">
-                <div class="col-md-5">
+                <div class="col-md-4">
                     <input type="text" name="numero_placa" class="form-control" placeholder="Placa" required>
                 </div>
                 <div class="col-md-4">
                     <input type="text" name="propietario" class="form-control" placeholder="Chofer">
                 </div>
-                <div class="col-md-3 d-grid">
+
+                <!-- ✅ NUEVO: Color del cabezal -->
+                <div class="col-md-3">
+                    <input type="text" name="color_cabezal" class="form-control" placeholder="Color cabezal (ej: Rojo)">
+                </div>
+
+                <div class="col-md-1 d-grid">
                     <button type="submit" class="btn btn-primary">Agregar</button>
                 </div>
             </form>
@@ -31,7 +37,7 @@
             type="text"
             id="buscadorPlacas"
             class="form-control"
-            placeholder="Buscar por placa, chofer, estado, usuario…">
+            placeholder="Buscar por placa, chofer, color, estado, usuario…">
     </div>
 
     <!-- Tabla de placas -->
@@ -43,9 +49,16 @@
                     <th>ID</th>
                     <th>Número de placa</th>
                     <th>Chofer</th>
+
+                    <!-- ✅ NUEVO -->
+                    <th>Color cabezal</th>
+
                     <th>Registrado por</th>
                     <th>Fecha de registro</th>
                     <th>Estado</th>
+
+                    <!-- ✅ NUEVO -->
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -55,8 +68,10 @@
                     <td class="fw-bold">{{ placa.numero_placa }}</td>
                     <td>{{ placa.propietario or '—' }}</td>
 
-                    <td>{{ placa.usuario.nombre if placa.usuario else '—' }}</td>
+                    <!-- ✅ NUEVO -->
+                    <td>{{ placa.color_cabezal or '—' }}</td>
 
+                    <td>{{ placa.usuario.nombre if placa.usuario else '—' }}</td>
                     <td>{{ placa.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
 
                     <td>
@@ -67,7 +82,44 @@
                             </select>
                         </form>
                     </td>
+
+                    <!-- ✅ NUEVO: botón editar -->
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#editPlaca{{ placa.id }}">
+                            ✏️ Editar
+                        </button>
+                    </td>
                 </tr>
+
+                <!-- ✅ NUEVO: fila colapsable para editar sin complicaciones -->
+                <tr class="collapse" id="editPlaca{{ placa.id }}">
+                    <td colspan="8">
+                        <div class="card card-body border-0 shadow-sm">
+                            <form method="POST" action="{{ url_for('placa_bp.actualizar_placa', placa_id=placa.id) }}" class="row g-2">
+                                <div class="col-md-5">
+                                    <label class="form-label mb-1">Chofer</label>
+                                    <input type="text" name="propietario" class="form-control"
+                                           value="{{ placa.propietario or '' }}" placeholder="Chofer">
+                                </div>
+
+                                <div class="col-md-5">
+                                    <label class="form-label mb-1">Color del cabezal</label>
+                                    <input type="text" name="color_cabezal" class="form-control"
+                                           value="{{ placa.color_cabezal or '' }}" placeholder="Ej: Rojo">
+                                </div>
+
+                                <div class="col-md-2 d-grid">
+                                    <label class="form-label mb-1">&nbsp;</label>
+                                    <button type="submit" class="btn btn-success">Guardar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+
                 {% endfor %}
             </tbody>
         </table>

@@ -187,6 +187,7 @@ def alerta_emergencia():
             "Un vehículo lleva *más de 20 minutos sin cerrarse*.\n\n"
             f"👤 Chofer: {nombre_chofer}\n"
             f"🚛 Placa: {placa.numero_placa}\n"
+            f"🎨 Color cabezal: {placa.color_cabezal or 'No registrado'}\n"
             f"📦 Identificador: {mov.contenedor}\n"
             f"🕒 Salida: {mov.hora_salida.strftime('%d/%m/%Y %H:%M')}\n"
             f"⏳ Tiempo: {h}h {m}m {s}s\n\n"
@@ -224,9 +225,13 @@ def alerta_emergencia():
                     "🚨 *ALERTA DE ORDEN INCORRECTO*\n\n"
                     "Un viaje salió antes y aún no ha llegado,\n"
                     "pero otro posterior ya fue cerrado.\n\n"
+
                     f"🚛 Placa retrasada: {placa_x.numero_placa}\n"
+                    f"🎨 Color cabezal: {placa_x.color_cabezal or 'No registrado'}\n"
                     f"📦 Contenedor: {mov_x.contenedor}\n\n"
-                    f"🚛 Placa que cerró antes: {placa_y.numero_placa}"
+
+                    f"🚛 Placa que cerró antes: {placa_y.numero_placa}\n"
+                    f"🎨 Color cabezal: {placa_y.color_cabezal or 'No registrado'}"
                 )
 
                 enviar_notificacion(mensaje)

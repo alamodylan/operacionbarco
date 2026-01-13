@@ -12,11 +12,15 @@ class Placa(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     numero_placa = db.Column(db.String(20), unique=True, nullable=False)
     propietario = db.Column(db.String(100))
+
+    # ✅ NUEVO: Color del cabezal (opcional)
+    color_cabezal = db.Column(db.String(30), nullable=True)
+
     estado = db.Column(db.String(20), default="Activa")  # 👈 Mayúscula inicial estándar
     fecha_registro = db.Column(
-    db.DateTime,
-    default=lambda: datetime.now(CR_TZ).replace(tzinfo=None)
-)
+        db.DateTime,
+        default=lambda: datetime.now(CR_TZ).replace(tzinfo=None)
+    )
 
     # 🔗 Relación con el usuario que registró la placa
     usuario_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.usuarios.id"), nullable=True)
