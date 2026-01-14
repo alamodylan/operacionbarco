@@ -8,6 +8,8 @@ import os
 import json
 from flask import current_app
 from pywebpush import webpush, WebPushException
+from models.push_subscription import PushSubscription
+from flask import has_app_context
 
 CR_TZ = pytz.timezone("America/Costa_Rica")
 
@@ -102,18 +104,22 @@ class MovimientoBarco(db.Model):
             pass
 
     def _enviar_push(self, titulo: str, mensaje: str, url: str = "/notificaciones/alerta"):
-        # Envía push a dispositivos suscritos (push_subs.json)
+        """
+        Envía push a dispositivos suscritos (PostgreSQL).
+        Si un endpoint está muerto, se elimina.
+        """
         try:
-            ruta = os.path.join(current_app.root_path, "push_subs.json")
-            if not os.path.exists(ruta):
-                return
-
-            with open(ruta, "r", encoding="utf-8") as f:
-                subs = json.load(f) or []
+            if not has_app_context():
+                return  # si se ejecuta fuera de contexto Flask, no intentamos
 
             vapid_private = os.getenv("VAPID_PRIVATE_KEY", "")
             vapid_subject = os.getenv("VAPID_SUBJECT", "mailto:ti@alamo.com")
-            if not vapid_private or not subs:
+
+            if not vapid_private:
+                return
+
+            subs = PushSubscription.query.all()
+            if not subs:
                 return
 
             payload = json.dumps({
@@ -122,12 +128,12 @@ class MovimientoBarco(db.Model):
                 "url": url
             })
 
-            vivos = []
             for s in subs:
                 sub_info = {
-                    "endpoint": s["endpoint"],
-                    "keys": {"p256dh": s["p256dh"], "auth": s["auth"]}
+                    "endpoint": s.endpoint,
+                    "keys": {"p256dh": s.p256dh, "auth": s.auth}
                 }
+
                 try:
                     webpush(
                         subscription_info=sub_info,
@@ -135,18 +141,25 @@ class MovimientoBarco(db.Model):
                         vapid_private_key=vapid_private,
                         vapid_claims={"sub": vapid_subject}
                     )
-                    vivos.append(s)
-                except WebPushException:
-                    # endpoint muerto → no lo guardamos
-                    pass
+                    s.last_seen = datetime.utcnow()
 
-            # Limpieza de endpoints muertos
-            with open(ruta, "w", encoding="utf-8") as f:
-                json.dump(vivos, f, ensure_ascii=False, indent=2)
+                except WebPushException:
+                    # endpoint muerto => se borra
+                    try:
+                        db.session.delete(s)
+                    except Exception:
+                        pass
+
+            db.session.commit()
 
         except Exception:
-            # Cero riesgo: si push falla, no afecta WhatsApp ni el cierre
-            pass
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            # No tumbamos el cierre del viaje por un push fallido
+            if has_app_context():
+                current_app.logger.exception("Error enviando push (alerta resuelta)")
 
     # ======================================================
     # 🟩 FINALIZAR
