@@ -133,7 +133,6 @@ def check():
 # VER ALERTA EN GRANDE
 # -----------------------------------------------------------
 @notificacion_bp.route("/alerta", methods=["GET"])
-@login_required
 def ver_alerta():
     ruta = os.path.join(current_app.root_path, "last_alert.json")
     data = {
