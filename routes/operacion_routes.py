@@ -118,36 +118,58 @@ def detalle_operacion(operacion_id):
 
 # ------------------------------------------------------------
 # 🚛 4️⃣ Agregar movimiento (SALIDA) — SIN NOTIFICACIÓN
+#     ✅ AHORA: solo con IDENTIFICADOR FIJO (sin escribir contenedor)
 # ------------------------------------------------------------
 @operacion_bp.route("/agregar_movimiento/<int:operacion_id>", methods=["POST"])
 @login_required
 def agregar_movimiento(operacion_id):
     try:
         placa_id = request.form.get("placa_id")
-        contenedor = request.form.get("contenedor")
 
-        if not placa_id or not contenedor:
-            flash("Debe seleccionar una placa activa y escribir el número de contenedor.", "warning")
+        if not placa_id:
+            flash("Debe seleccionar un identificador fijo.", "warning")
+            return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
+
+        placa = Placa.query.get(int(placa_id))
+        if not placa:
+            flash("La placa seleccionada no existe.", "danger")
+            return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
+
+        # ✅ Usamos el identificador fijo como el "contenedor" del movimiento
+        identificador = (placa.identificador_fijo or "").strip()
+
+        if not identificador:
+            flash("Esa placa no tiene identificador fijo asignado.", "warning")
+            return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
+
+        # ✅ Opcional: evitar doble movimiento EN RUTA con el mismo identificador en la misma operación
+        existente = (
+            MovimientoBarco.query
+            .filter_by(operacion_id=operacion_id, contenedor=identificador, estado="en_ruta")
+            .first()
+        )
+        if existente:
+            flash(f"El identificador {identificador} ya está en ruta en esta operación.", "warning")
             return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
         nuevo_mov = MovimientoBarco(
             operacion_id=operacion_id,
-            placa_id=placa_id,
-            contenedor=contenedor.strip().upper(),
+            placa_id=placa.id,
+            contenedor=identificador,  # 👈 aquí va el identificador fijo
             hora_salida=datetime.now(CR_TZ).replace(tzinfo=None),
             estado="en_ruta",
-            ultima_notificacion=None,  # necesario para la alerta de emergencia
+            ultima_notificacion=None,
         )
 
         db.session.add(nuevo_mov)
         db.session.commit()
 
-        # ❌ YA NO SE ENVÍA NOTIFICACIÓN AQUÍ
-        flash(f"Movimiento agregado correctamente para el contenedor {contenedor}.", "success")
+        flash(f"Movimiento agregado correctamente para el identificador {identificador}.", "success")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
     except Exception as e:
         current_app.logger.exception(f"Error al agregar movimiento: {e}")
+        db.session.rollback()
         flash("Error al agregar movimiento.", "danger")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
