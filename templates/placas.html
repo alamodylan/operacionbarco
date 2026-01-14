@@ -1,3 +1,4 @@
+{# templates/placas.html #}
 {% extends "base.html" %}
 
 {% block title %}Gestión de Placas{% endblock %}
@@ -51,6 +52,18 @@
           >
         </div>
 
+        {# ✅ Opcional: si querés poder cargar identificador fijo al crear #}
+        {# 
+        <div class="col-md-3">
+          <input
+            type="text"
+            name="identificador_fijo"
+            class="form-control"
+            placeholder="Identificador fijo (ej: 1001)"
+          >
+        </div>
+        #}
+
         <div class="col-md-1 d-grid">
           <button type="submit" class="btn btn-primary">Agregar</button>
         </div>
@@ -65,7 +78,7 @@
       type="text"
       id="buscadorPlacas"
       class="form-control"
-      placeholder="Buscar por placa, chofer, color, estado, usuario…"
+      placeholder="Buscar por placa, chofer, color, identificador, estado, usuario…"
     >
   </div>
 
@@ -84,6 +97,7 @@
               <th>Número de placa</th>
               <th>Chofer</th>
               <th>Color cabezal</th>
+              <th>Identificador fijo</th>
               <th>Registrado por</th>
               <th>Fecha de registro</th>
               <th>Estado</th>
@@ -114,6 +128,18 @@
                     name="color_cabezal[{{ placa.id }}]"
                     value="{{ placa.color_cabezal or '' }}"
                     placeholder="Ej: Rojo"
+                    disabled
+                  >
+                </td>
+
+                <!-- ✅ NUEVO: Identificador fijo -->
+                <td>
+                  <input
+                    type="text"
+                    class="form-control form-control-sm editable"
+                    name="identificador_fijo[{{ placa.id }}]"
+                    value="{{ placa.identificador_fijo or '' }}"
+                    placeholder="Ej: 1001"
                     disabled
                   >
                 </td>
@@ -171,7 +197,7 @@
     });
   }
 
-  // Editar / Guardar (solo si existe btnEditar)
+  // Editar / Guardar
   const btnEditar = document.getElementById("btnEditar");
   const btnGuardar = document.getElementById("btnGuardar");
   const editables = document.querySelectorAll(".editable");

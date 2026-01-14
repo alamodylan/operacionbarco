@@ -51,24 +51,47 @@
             action="{{ url_for('operacion_bp.agregar_movimiento', operacion_id=operacion.id) }}"
             class="row g-2"
           >
-            <!-- 🔹 Selector de placas activas con buscador -->
+            <!-- ✅ Selector por IDENTIFICADOR FIJO con buscador -->
             <div class="col-md-4">
               <select
+                id="selectIdentificador"
                 name="placa_id"
                 class="selectpicker form-control"
                 data-live-search="true"
                 data-size="7"
-                title="Buscar placa..."
+                title="Buscar identificador..."
                 required
               >
                 {% for placa in placas %}
-                  {% if placa.estado == 'Activa' %}
-                    <option value="{{ placa.id }}">{{ placa.numero_placa }}</option>
+                  {% if placa.estado == 'Activa' and placa.identificador_fijo %}
+                    <option
+                      value="{{ placa.id }}"
+                      data-placa="{{ placa.numero_placa }}"
+                      data-chofer="{{ placa.propietario or '' }}"
+                      data-color="{{ placa.color_cabezal or '' }}"
+                    >
+                      {{ placa.identificador_fijo }} — {{ placa.numero_placa }}
+                    </option>
                   {% endif %}
                 {% endfor %}
               </select>
+              <small class="text-muted">Identificador fijo</small>
             </div>
 
+            <!-- ✅ Vista previa automática -->
+            <div class="col-md-3">
+              <input id="vistaPlaca" type="text" class="form-control" placeholder="Placa" readonly>
+            </div>
+
+            <div class="col-md-3">
+              <input id="vistaChofer" type="text" class="form-control" placeholder="Chofer" readonly>
+            </div>
+
+            <div class="col-md-2">
+              <input id="vistaColor" type="text" class="form-control" placeholder="Color" readonly>
+            </div>
+
+            <!-- ✅ Se mantiene tu identificador del viaje (NO lo tocamos) -->
             <div class="col-md-6">
               <input
                 type="text"
@@ -171,4 +194,25 @@
     ← Volver a Operaciones
   </a>
 </div>
+
+<!-- ✅ Script para autocompletar vista previa desde el selector -->
+<script>
+  (function () {
+    const select = document.getElementById("selectIdentificador");
+    if (!select) return;
+
+    const vistaPlaca = document.getElementById("vistaPlaca");
+    const vistaChofer = document.getElementById("vistaChofer");
+    const vistaColor = document.getElementById("vistaColor");
+
+    $(select).on("changed.bs.select", function () {
+      const opt = select.options[select.selectedIndex];
+      if (!opt) return;
+
+      vistaPlaca.value = opt.getAttribute("data-placa") || "";
+      vistaChofer.value = opt.getAttribute("data-chofer") || "";
+      vistaColor.value = opt.getAttribute("data-color") || "";
+    });
+  })();
+</script>
 {% endblock %}

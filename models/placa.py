@@ -1,4 +1,6 @@
+# models/placa.py
 from datetime import datetime
+
 import pytz
 
 from models.base import db
@@ -18,28 +20,21 @@ class Placa(db.Model):
     # -------------------------------------------------------
     id = db.Column(db.Integer, primary_key=True)
 
-    numero_placa = db.Column(
-        db.String(20),
-        unique=True,
-        nullable=False
-    )
+    numero_placa = db.Column(db.String(20), unique=True, nullable=False)
 
     propietario = db.Column(db.String(100))
 
-    # ✅ NUEVO: Color del cabezal (opcional)
-    color_cabezal = db.Column(
-        db.String(30),
-        nullable=True
-    )
+    # ✅ Color del cabezal (opcional)
+    color_cabezal = db.Column(db.String(30), nullable=True)
 
-    estado = db.Column(
-        db.String(20),
-        default="Activa"  # 👈 Mayúscula inicial estándar
-    )
+    # ✅ NUEVO: Identificador fijo (opcional, único en DB por índice parcial)
+    identificador_fijo = db.Column(db.String(50), nullable=True)
+
+    estado = db.Column(db.String(20), default="Activa")  # 👈 Mayúscula inicial estándar
 
     fecha_registro = db.Column(
         db.DateTime,
-        default=lambda: datetime.now(CR_TZ).replace(tzinfo=None)
+        default=lambda: datetime.now(CR_TZ).replace(tzinfo=None),
     )
 
     # -------------------------------------------------------
@@ -48,12 +43,12 @@ class Placa(db.Model):
     usuario_id = db.Column(
         db.Integer,
         db.ForeignKey("operacionbarco.usuarios.id"),
-        nullable=True
+        nullable=True,
     )
 
     usuario = db.relationship(
         "Usuario",
-        backref=db.backref("placas", lazy=True)
+        backref=db.backref("placas", lazy=True),
     )
 
     # -------------------------------------------------------

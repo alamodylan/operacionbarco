@@ -1,3 +1,4 @@
+# routes/placa_routes.py
 from flask import (
     Blueprint,
     render_template,
@@ -42,6 +43,9 @@ def nueva_placa():
         propietario = (request.form.get("propietario") or "").strip() or None
         color_cabezal = (request.form.get("color_cabezal") or "").strip() or None
 
+        # ✅ NUEVO (opcional): permitir cargar identificador fijo desde el form si lo agregás
+        identificador_fijo = (request.form.get("identificador_fijo") or "").strip() or None
+
         if not numero_placa:
             flash("Debe ingresar un número de placa.", "warning")
             return redirect(url_for("placa_bp.listar_placas"))
@@ -55,6 +59,7 @@ def nueva_placa():
             numero_placa=numero_placa,
             propietario=propietario,
             color_cabezal=color_cabezal,
+            identificador_fijo=identificador_fijo,  # ✅ NUEVO
             usuario_id=current_user.id if current_user else None,
         )
 
@@ -83,8 +88,12 @@ def actualizar_placa(placa_id):
         propietario = (request.form.get("propietario") or "").strip() or None
         color_cabezal = (request.form.get("color_cabezal") or "").strip() or None
 
+        # ✅ NUEVO (opcional): si algún día actualizás individualmente
+        identificador_fijo = (request.form.get("identificador_fijo") or "").strip() or None
+
         placa.propietario = propietario
         placa.color_cabezal = color_cabezal
+        placa.identificador_fijo = identificador_fijo  # ✅ NUEVO
 
         db.session.commit()
 
@@ -138,7 +147,7 @@ def actualizar_placas_batch():
         updates = {}
 
         # request.form trae keys tipo:
-        # propietario[26], color_cabezal[26], estado[26]
+        # propietario[26], color_cabezal[26], estado[26], identificador_fijo[26]
         for key, value in request.form.items():
             if key.startswith("propietario["):
                 placa_id = int(key.split("[", 1)[1].split("]")[0])
@@ -153,6 +162,11 @@ def actualizar_placas_batch():
                 estado = value.strip()
                 if estado in ["Activa", "Inactiva"]:
                     updates.setdefault(placa_id, {})["estado"] = estado
+
+            # ✅ NUEVO: identificador fijo
+            elif key.startswith("identificador_fijo["):
+                placa_id = int(key.split("[", 1)[1].split("]")[0])
+                updates.setdefault(placa_id, {})["identificador_fijo"] = value.strip() or None
 
         if not updates:
             flash("No hay cambios para guardar.", "info")
@@ -177,6 +191,10 @@ def actualizar_placas_batch():
 
             if "estado" in data:
                 p.estado = data["estado"]
+
+            # ✅ NUEVO
+            if "identificador_fijo" in data:
+                p.identificador_fijo = data["identificador_fijo"]
 
         db.session.commit()
 
