@@ -1,39 +1,67 @@
 from datetime import datetime
 import pytz
+
 from models.base import db
 
+# -----------------------------------------------------------
 # Zona horaria de Costa Rica
+# -----------------------------------------------------------
 CR_TZ = pytz.timezone("America/Costa_Rica")
+
 
 class Placa(db.Model):
     __tablename__ = "placas"
-    __table_args__ = {"schema": "operacionbarco"}  # 👈 Se crea en el schema correcto
+    __table_args__ = {"schema": "operacionbarco"}  # 👈 Schema correcto
 
+    # -------------------------------------------------------
+    # Campos
+    # -------------------------------------------------------
     id = db.Column(db.Integer, primary_key=True)
-    numero_placa = db.Column(db.String(20), unique=True, nullable=False)
+
+    numero_placa = db.Column(
+        db.String(20),
+        unique=True,
+        nullable=False
+    )
+
     propietario = db.Column(db.String(100))
 
     # ✅ NUEVO: Color del cabezal (opcional)
-    color_cabezal = db.Column(db.String(30), nullable=True)
+    color_cabezal = db.Column(
+        db.String(30),
+        nullable=True
+    )
 
-    # ✅ NUEVO: Identificador fijo ligado a la placa (opcional)
-    # (si el identificador está ligado a una sola placa, lo dejamos UNIQUE)
-    identificador_fijo = db.Column(db.String(50), unique=True, nullable=True, index=True)
+    estado = db.Column(
+        db.String(20),
+        default="Activa"  # 👈 Mayúscula inicial estándar
+    )
 
-    estado = db.Column(db.String(20), default="Activa")  # 👈 Mayúscula inicial estándar
     fecha_registro = db.Column(
         db.DateTime,
         default=lambda: datetime.now(CR_TZ).replace(tzinfo=None)
     )
 
-    # 🔗 Relación con el usuario que registró la placa
-    usuario_id = db.Column(db.Integer, db.ForeignKey("operacionbarco.usuarios.id"), nullable=True)
-    usuario = db.relationship("Usuario", backref=db.backref("placas", lazy=True))
+    # -------------------------------------------------------
+    # Relaciones
+    # -------------------------------------------------------
+    usuario_id = db.Column(
+        db.Integer,
+        db.ForeignKey("operacionbarco.usuarios.id"),
+        nullable=True
+    )
 
+    usuario = db.relationship(
+        "Usuario",
+        backref=db.backref("placas", lazy=True)
+    )
+
+    # -------------------------------------------------------
+    # Métodos
+    # -------------------------------------------------------
     def __repr__(self):
         return f"<Placa {self.numero_placa} - Estado: {self.estado}>"
 
-    # 🔹 Método auxiliar para normalizar estado
     def estado_normalizado(self):
         """Devuelve el estado con la primera letra mayúscula."""
         return self.estado.capitalize() if self.estado else "Desconocido"

@@ -1,15 +1,19 @@
 from flask import Flask, render_template, send_from_directory
 from flask_login import LoginManager, login_required, current_user
-from datetime import timedelta
-from config import Config
-from models.base import db
-from models.usuario import Usuario, bcrypt  # bcrypt importado del modelo
+from datetime import datetime, timedelta
 import pytz
-from datetime import datetime
-from dotenv import load_dotenv
-load_dotenv()
+import threading
+import time
 
-# Importación de Blueprints
+from dotenv import load_dotenv
+from config import Config
+
+from models.base import db
+from models.usuario import Usuario, bcrypt
+from models.movimiento import MovimientoBarco
+from models.notificacion import enviar_notificacion
+
+# Blueprints
 from routes.auth_routes import auth_bp
 from routes.placa_routes import placa_bp
 from routes.operacion_routes import operacion_bp
@@ -18,22 +22,40 @@ from routes.notificacion_routes import notificacion_bp
 from routes.usuario_routes import usuario_bp
 
 
+# -----------------------------------------------------------
+# Cargar variables de entorno
+# -----------------------------------------------------------
+load_dotenv()
+
+# -----------------------------------------------------------
+# Zona horaria Costa Rica
+# -----------------------------------------------------------
+CR_TZ = pytz.timezone("America/Costa_Rica")
+
+
+# -----------------------------------------------------------
+# Application Factory
+# -----------------------------------------------------------
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # 🔒 Configuración de duración de sesión
+    # 🔒 Duración de sesión
     app.permanent_session_lifetime = timedelta(minutes=30)
 
-    # Inicialización de extensiones
+    # -------------------------------------------------------
+    # Inicializar extensiones
+    # -------------------------------------------------------
     db.init_app(app)
     bcrypt.init_app(app)
 
-    # Configuración del Login Manager
+    # -------------------------------------------------------
+    # Login Manager
+    # -------------------------------------------------------
     login_manager = LoginManager()
-    login_manager.login_view = "auth_bp.login"  # vista de login del blueprint
+    login_manager.login_view = "auth_bp.login"
     login_manager.login_message = "Por favor, inicia sesión para continuar."
-    login_manager.refresh_view = "auth_bp.login"  # redirigir al login si expira
+    login_manager.refresh_view = "auth_bp.login"
     login_manager.needs_refresh_message = "Tu sesión ha expirado. Vuelve a iniciar sesión."
     login_manager.needs_refresh_message_category = "info"
     login_manager.init_app(app)
@@ -42,42 +64,34 @@ def create_app():
     def load_user(user_id):
         return Usuario.query.get(int(user_id))
 
+    # -------------------------------------------------------
     # Registro de Blueprints
+    # -------------------------------------------------------
     app.register_blueprint(auth_bp)
-    app.register_blueprint(placa_bp, url_prefix="/placas")
+    app.register_blueprint(placa_bp)
     app.register_blueprint(operacion_bp)
     app.register_blueprint(movimiento_bp)
     app.register_blueprint(notificacion_bp)
     app.register_blueprint(usuario_bp)
 
-    # =====================================================
-    # ✅ CAMBIO NECESARIO: Servir Service Worker en la raíz
-    # =====================================================
+    # -------------------------------------------------------
+    # Service Worker (scope raíz)
+    # -------------------------------------------------------
     @app.route("/sw.js")
     def sw():
-        # Sirve el Service Worker desde la raíz para que tenga scope "/"
         return send_from_directory("static", "sw.js")
 
-    # 🔹 Crear tablas y usuario admin solo una vez (seguro para Render)
-    with app.app_context():
-        db.create_all()
-        if not Usuario.query.first():
-            admin = Usuario(
-                nombre="Dylan Bustos",
-                email="italamo@alamoterminales.com"
-            )
-            admin.set_password("atm4261")
-            db.session.add(admin)
-            db.session.commit()
-            print("✅ Usuario administrador creado automáticamente.")
-
-    # Página principal (dashboard protegido)
+    # -------------------------------------------------------
+    # Dashboard protegido
+    # -------------------------------------------------------
     @app.route("/")
     @login_required
     def dashboard():
         return render_template("dashboard.html", user=current_user)
 
-    # Manejo básico de errores
+    # -------------------------------------------------------
+    # Manejo de errores
+    # -------------------------------------------------------
     @app.errorhandler(404)
     def page_not_found(e):
         return render_template("404.html"), 404
@@ -86,31 +100,16 @@ def create_app():
     def internal_error(e):
         return render_template("500.html"), 500
 
-    return app
-
-
-# =====================================================
-# 🌎 Definir zona horaria de Costa Rica
-# =====================================================
-CR_TZ = pytz.timezone("America/Costa_Rica")
-# Ahora podés usar datetime.now(CR_TZ) en toda la app
-
-# =====================================================
-# Inicialización de la app
-# =====================================================
-
-# 🔹 Ejecución local (solo en tu PC, no en Render)
-if __name__ == "__main__":
-    app = create_app()
+    # -------------------------------------------------------
+    # Crear tablas y usuario admin (solo una vez)
+    # -------------------------------------------------------
     with app.app_context():
-        print("🧱 Verificando estructura de base de datos...")
         db.create_all()
 
-        # Crear usuario administrador automáticamente (solo si no existe)
         if not Usuario.query.filter_by(email="italamo@alamoterminales.com").first():
             admin = Usuario(
                 nombre="Dylan Bustos",
-                email="italamo@alamoterminales.com"
+                email="italamo@alamoterminales.com",
             )
             admin.set_password("atm4261")
             db.session.add(admin)
@@ -119,64 +118,76 @@ if __name__ == "__main__":
         else:
             print("ℹ️ Usuario administrador ya existe.")
 
-    # =====================================================
-    # 🕒 Verificación automática de movimientos prolongados
-    # =====================================================
-    import threading
-    import time
-    from models.movimiento import MovimientoBarco
-    from models.notificacion import enviar_notificacion
+    return app
 
-    def verificar_movimientos_periodicamente():
-        """
-        Hilo en segundo plano que revisa cada minuto si hay
-        movimientos activos de más de 15 minutos sin cerrar
-        y reenvía alerta cada 4 minutos mientras siga abierto.
-        """
-        ultima_alerta = {}  # Diccionario {movimiento_id: timestamp_última_alerta}
 
-        while True:
-            try:
-                with app.app_context():
-                    ahora = datetime.now(CR_TZ).replace(tzinfo=None)
-                    movimientos = MovimientoBarco.query.filter_by(estado="en_ruta").all()
-                    print("⏱️ Verificando movimientos activos...", datetime.now(CR_TZ).strftime("%H:%M:%S %d/%m/%Y"))
+# -----------------------------------------------------------
+# Verificación automática de movimientos prolongados
+# -----------------------------------------------------------
+def verificar_movimientos_periodicamente(app):
+    """
+    Revisa cada minuto si hay movimientos en ruta por más de 20 minutos
+    y reenvía alertas cada 4 minutos mientras sigan abiertos.
+    """
+    ultima_alerta = {}
 
-                    for mov in movimientos:
-                        if not mov.hora_salida:
-                            continue
+    while True:
+        try:
+            with app.app_context():
+                ahora = datetime.now(CR_TZ).replace(tzinfo=None)
+                movimientos = MovimientoBarco.query.filter_by(estado="en_ruta").all()
 
-                        minutos_transcurridos = (ahora - mov.hora_salida).total_seconds() / 60
+                print(
+                    "⏱️ Verificando movimientos activos...",
+                    datetime.now(CR_TZ).strftime("%H:%M:%S %d/%m/%Y"),
+                )
 
-                        # ✅ Si pasaron más de 20 minutos
-                        if minutos_transcurridos >= 20:
-                            ultimo_envio = ultima_alerta.get(mov.id)
-                            # ✅ Solo reenvía si no ha enviado o pasaron 4 minutos desde la última alerta
-                            if not ultimo_envio or (ahora - ultimo_envio).total_seconds() >= 240:
-                                mensaje = (
-                                    f"🚨 *ALERTA DE RETRASO EN RUTA!*\n"
-                                    f"🧱 Contenedor: {mov.contenedor}\n"
-                                    f"🚛 Placa: {mov.placa.numero_placa}\n"
-                                    f"👨‍🔧 Chofer: {mov.placa.propietario or 'Desconocido'}\n"
-                                    f"🕒 Inicio: {mov.hora_salida.strftime('%H:%M %d/%m/%Y')}\n"
-                                    f"⏱️ Tiempo transcurrido: {int(minutos_transcurridos)} minutos"
-                                )
-                                enviar_notificacion(mensaje)
-                                ultima_alerta[mov.id] = ahora  # registra la hora del último envío
+                for mov in movimientos:
+                    if not mov.hora_salida:
+                        continue
 
-                    # 🧹 Limpia movimientos cerrados del diccionario
-                    ids_activos = {mov.id for mov in movimientos}
-                    for mid in list(ultima_alerta.keys()):
-                        if mid not in ids_activos:
-                            ultima_alerta.pop(mid, None)
+                    minutos = (ahora - mov.hora_salida).total_seconds() / 60
 
-            except Exception as e:
-                app.logger.error(f"Error en verificación automática: {e}")
+                    if minutos >= 20:
+                        ultimo_envio = ultima_alerta.get(mov.id)
 
-            time.sleep(60)  # revisa cada minuto
+                        if not ultimo_envio or (ahora - ultimo_envio).total_seconds() >= 240:
+                            mensaje = (
+                                "🚨 *ALERTA DE RETRASO EN RUTA!*\n"
+                                f"🧱 Contenedor: {mov.contenedor}\n"
+                                f"🚛 Placa: {mov.placa.numero_placa}\n"
+                                f"👨‍🔧 Chofer: {mov.placa.propietario or 'Desconocido'}\n"
+                                f"🕒 Inicio: {mov.hora_salida.strftime('%H:%M %d/%m/%Y')}\n"
+                                f"⏱️ Tiempo transcurrido: {int(minutos)} minutos"
+                            )
 
-    # 🔹 Inicia el hilo automáticamente
-    verificador = threading.Thread(target=verificar_movimientos_periodicamente, daemon=True)
+                            enviar_notificacion(mensaje)
+                            ultima_alerta[mov.id] = ahora
+
+                # 🧹 Limpiar alertas de movimientos cerrados
+                ids_activos = {m.id for m in movimientos}
+                for mid in list(ultima_alerta.keys()):
+                    if mid not in ids_activos:
+                        ultima_alerta.pop(mid, None)
+
+        except Exception as e:
+            app.logger.error(f"Error en verificación automática: {e}")
+
+        time.sleep(60)
+
+
+# -----------------------------------------------------------
+# Ejecución local
+# -----------------------------------------------------------
+if __name__ == "__main__":
+    app = create_app()
+
+    # 🔹 Iniciar hilo en segundo plano
+    verificador = threading.Thread(
+        target=verificar_movimientos_periodicamente,
+        args=(app,),
+        daemon=True,
+    )
     verificador.start()
 
     app.run(host="0.0.0.0", port=5000, debug=False)

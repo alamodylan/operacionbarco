@@ -1,11 +1,14 @@
+from datetime import datetime
+
+import pytz
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
-from datetime import datetime
+
 from models.base import db
 from models.operacion import Operacion
 from models.movimiento import MovimientoBarco
 from models.placa import Placa
-import pytz
+
 
 CR_TZ = pytz.timezone("America/Costa_Rica")
 
@@ -13,6 +16,7 @@ CR_TZ = pytz.timezone("America/Costa_Rica")
 # 🟦 BLUEPRINT DE OPERACIONES DE BARCO
 # ============================================================
 operacion_bp = Blueprint("operacion_bp", __name__, url_prefix="/operaciones")
+
 
 # ------------------------------------------------------------
 # 📄 1️⃣ Listar operaciones en proceso
@@ -27,11 +31,21 @@ def listar_operaciones():
             .order_by(Operacion.fecha_creacion.desc())
             .all()
         )
-        return render_template("operaciones.html", operaciones=operaciones, rol=current_user.rol)
+        return render_template(
+            "operaciones.html",
+            operaciones=operaciones,
+            rol=current_user.rol
+        )
+
     except Exception as e:
         current_app.logger.exception(f"Error al listar operaciones: {e}")
         flash("Ocurrió un error al cargar las operaciones activas.", "danger")
-        return render_template("operaciones.html", operaciones=[], rol=current_user.rol)
+        return render_template(
+            "operaciones.html",
+            operaciones=[],
+            rol=current_user.rol
+        )
+
 
 # ------------------------------------------------------------
 # ➕ 2️⃣ Crear nueva operación de barco
@@ -41,7 +55,7 @@ def listar_operaciones():
 def nueva_operacion():
     try:
         nombre = request.form.get("nombre")
-        tipo_operacion = request.form.get("tipo_operacion")  
+        tipo_operacion = request.form.get("tipo_operacion")
 
         if not nombre or not tipo_operacion:
             flash("Debe ingresar nombre y tipo de operación.", "warning")
@@ -50,8 +64,9 @@ def nueva_operacion():
         nueva = Operacion(
             nombre=nombre.strip(),
             tipo_operacion=tipo_operacion,
-            fecha_creacion=datetime.now(CR_TZ).replace(tzinfo=None)
+            fecha_creacion=datetime.now(CR_TZ).replace(tzinfo=None),
         )
+
         db.session.add(nueva)
         db.session.commit()
 
@@ -62,6 +77,7 @@ def nueva_operacion():
         current_app.logger.exception(f"Error al crear operación: {e}")
         flash("Error al crear la operación.", "danger")
         return redirect(url_for("operacion_bp.listar_operaciones"))
+
 
 # ------------------------------------------------------------
 # 🔍 3️⃣ Ver detalles de una operación
@@ -91,13 +107,14 @@ def detalle_operacion(operacion_id):
             operacion=operacion,
             placas=placas_disponibles,
             movimientos=movimientos,
-            rol=current_user.rol
+            rol=current_user.rol,
         )
 
     except Exception as e:
         current_app.logger.exception(f"Error al cargar detalles de operación: {e}")
         flash("No se pudo cargar la operación.", "danger")
         return redirect(url_for("operacion_bp.listar_operaciones"))
+
 
 # ------------------------------------------------------------
 # 🚛 4️⃣ Agregar movimiento (SALIDA) — SIN NOTIFICACIÓN
@@ -107,46 +124,33 @@ def detalle_operacion(operacion_id):
 def agregar_movimiento(operacion_id):
     try:
         placa_id = request.form.get("placa_id")
+        contenedor = request.form.get("contenedor")
 
-        if not placa_id:
-            flash("Debe seleccionar un identificador para cargar la placa automáticamente.", "warning")
-            return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
-
-        # ✅ Seguridad: traer placa real desde DB
-        placa = Placa.query.get_or_404(int(placa_id))
-
-        # ✅ Validar que la placa esté activa
-        if (placa.estado or "").lower() != "activa":
-            flash("La placa seleccionada no está activa.", "warning")
-            return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
-
-        # ✅ Fuente de verdad: identificador fijo ligado a la placa
-        identificador = (placa.identificador_fijo or "").strip().upper()
-
-        if not identificador:
-            flash("Esa placa no tiene identificador ligado. Ligalo en Gestión de Placas.", "danger")
+        if not placa_id or not contenedor:
+            flash("Debe seleccionar una placa activa y escribir el número de contenedor.", "warning")
             return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
         nuevo_mov = MovimientoBarco(
             operacion_id=operacion_id,
-            placa_id=placa.id,
-            contenedor=identificador,  # 👈 aquí se guarda el identificador fijo
+            placa_id=placa_id,
+            contenedor=contenedor.strip().upper(),
             hora_salida=datetime.now(CR_TZ).replace(tzinfo=None),
             estado="en_ruta",
-            ultima_notificacion=None
+            ultima_notificacion=None,  # necesario para la alerta de emergencia
         )
 
         db.session.add(nuevo_mov)
         db.session.commit()
 
-        flash(f"Movimiento agregado correctamente para el identificador {identificador}.", "success")
+        # ❌ YA NO SE ENVÍA NOTIFICACIÓN AQUÍ
+        flash(f"Movimiento agregado correctamente para el contenedor {contenedor}.", "success")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
 
     except Exception as e:
-        db.session.rollback()
         current_app.logger.exception(f"Error al agregar movimiento: {e}")
         flash("Error al agregar movimiento.", "danger")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=operacion_id))
+
 
 # ------------------------------------------------------------
 # 🏁 5️⃣ Finalizar un movimiento (ENTRADA) — SIN NOTIFICACIÓN
@@ -160,7 +164,6 @@ def finalizar_movimiento(movimiento_id):
         db.session.commit()
 
         # ❌ YA NO SE ENVÍA NOTIFICACIÓN AQUÍ
-
         flash(f"Movimiento {mov.contenedor} finalizado correctamente.", "success")
         return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=mov.operacion_id))
 
@@ -168,6 +171,7 @@ def finalizar_movimiento(movimiento_id):
         current_app.logger.exception(f"Error al finalizar movimiento: {e}")
         flash("Error al finalizar movimiento.", "danger")
         return redirect(url_for("operacion_bp.listar_operaciones"))
+
 
 # ------------------------------------------------------------
 # ⛔ 6️⃣ Finalizar toda la operación
@@ -190,7 +194,8 @@ def finalizar_operacion(operacion_id):
         current_app.logger.exception(f"Error al finalizar operación: {e}")
         flash("Error al finalizar la operación.", "danger")
         return redirect(url_for("operacion_bp.listar_operaciones"))
-    
+
+
 # ------------------------------------------------------------
 # 🧪 DEBUG: Ver valores reales de WhatsApp cargados desde Render
 # ------------------------------------------------------------
@@ -202,8 +207,11 @@ def debug_noti():
         "WHATSAPP_PHONE_1": repr(current_app.config.get("WHATSAPP_PHONE_1")),
         "CALLMEBOT_API_KEY_1": repr(current_app.config.get("CALLMEBOT_API_KEY_1")),
     }
+
+
 @operacion_bp.route("/noti-test")
 def noti_test():
     from models.notificacion import enviar_notificacion
+
     ok = enviar_notificacion("🔥 Notificación de prueba Operación Barco")
     return {"resultado": ok}

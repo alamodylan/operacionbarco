@@ -1,14 +1,20 @@
 # routes/movimiento_routes.py
+
+from datetime import datetime
+
+import pytz
 from flask import Blueprint, render_template, request, flash, jsonify, current_app
 from flask_login import login_required
+
 from models.base import db
 from models.movimiento import MovimientoBarco
 from models.operacion import Operacion
-from datetime import datetime
-import pytz
+
+
 CR_TZ = pytz.timezone("America/Costa_Rica")
 
 movimiento_bp = Blueprint("movimiento_bp", __name__, url_prefix="/movimientos")
+
 
 # ============================================================
 # 📋 LISTAR MOVIMIENTOS FINALIZADOS (operaciones finalizadas)
@@ -28,13 +34,11 @@ def listar_movimientos():
         # 🔹 Filtrar solo los movimientos finalizados dentro de cada operación
         datos = []
         for op in operaciones:
-            movimientos_finalizados = [
-                m for m in op.movimientos if m.estado == "finalizado"
-            ]
+            movimientos_finalizados = [m for m in op.movimientos if m.estado == "finalizado"]
             if movimientos_finalizados:
                 datos.append({
                     "operacion": op,
-                    "movimientos": movimientos_finalizados
+                    "movimientos": movimientos_finalizados,
                 })
 
         return render_template("movimientos.html", datos=datos)
@@ -44,6 +48,7 @@ def listar_movimientos():
         flash("Ocurrió un error al cargar los movimientos.", "danger")
         return render_template("movimientos.html", datos=[])
 
+
 # ============================================================
 # 🏁 REGISTRAR LLEGADA / FINALIZAR MOVIMIENTO
 # ============================================================
@@ -52,6 +57,7 @@ def listar_movimientos():
 def registrar_llegada_movimiento(id):
     try:
         movimiento = MovimientoBarco.query.get(id)
+
         if not movimiento:
             return jsonify({"error": "Movimiento no encontrado"}), 404
 
@@ -61,9 +67,12 @@ def registrar_llegada_movimiento(id):
         # ✅ Hora correcta de Costa Rica
         movimiento.hora_llegada = datetime.now(CR_TZ).replace(tzinfo=None)
         movimiento.estado = "finalizado"
+
         db.session.commit()
 
-        return jsonify({"mensaje": f"Movimiento {movimiento.contenedor} finalizado correctamente"}), 200
+        return jsonify(
+            {"mensaje": f"Movimiento {movimiento.contenedor} finalizado correctamente"}
+        ), 200
 
     except Exception as e:
         current_app.logger.exception(f"Error al registrar llegada del movimiento: {e}")
