@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Alertas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="fw-bold mb-0">📣 Historial de alertas</h3>
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('notificacion_bp.ver_alerta') }}">
+      Ver última
+    </a>
+  </div>
+
+  {% if alertas %}
+    <div class="list-group shadow-sm">
+      {% for a in alertas %}
+        <a class="list-group-item list-group-item-action"
+           href="{{ url_for('notificacion_bp.ver_alerta_por_id', alerta_id=a.id) }}">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="fw-bold">
+              {% if a.tipo == 'emergencia' %}🚨{% elif a.tipo == 'resuelta' %}✅{% else %}⚠️{% endif %}
+              {{ a.titulo }}
+            </div>
+            <small class="text-muted">{{ a.fecha.strftime('%d/%m/%Y %H:%M:%S') }}</small>
+          </div>
+          <div class="text-muted">
+            {{ (a.mensaje[:140] ~ '...') if a.mensaje and a.mensaje|length > 140 else a.mensaje }}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">No hay alertas registradas.</div>
+  {% endif %}
+</div>
+{% endblock %}

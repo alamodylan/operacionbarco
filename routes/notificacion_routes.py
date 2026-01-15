@@ -1,4 +1,11 @@
-from flask import Blueprint, jsonify, request, current_app, render_template
+from flask import (
+    Blueprint,
+    jsonify,
+    request,
+    current_app,
+    render_template,
+    make_response,
+)
 from flask_login import login_required, current_user
 from models.notificacion import enviar_notificacion
 from models.movimiento import MovimientoBarco
@@ -10,8 +17,11 @@ import os
 from pywebpush import webpush, WebPushException
 import json
 
-# ✅ NUEVO: modelo para guardar suscripciones en PostgreSQL (persistente)
+# ✅ Persistencia push (PostgreSQL)
 from models.push_subscription import PushSubscription
+
+# ✅ Historial de alertas web (PostgreSQL)
+from models.notificacion_alerta import NotificacionAlerta
 
 
 # -----------------------------------------------------------
@@ -20,47 +30,74 @@ from models.push_subscription import PushSubscription
 notificacion_bp = Blueprint(
     "notificacion_bp",
     __name__,
-    url_prefix="/notificaciones"
+    url_prefix="/notificaciones",
 )
 
 CR_TZ = pytz.timezone("America/Costa_Rica")
+
 
 # -----------------------------------------------------------
 # Quitar formato WhatsApp (*negritas*) para Push
 # -----------------------------------------------------------
 def _push_text(texto: str, max_len: int = 180) -> str:
-    # Quita * y reduce tamaño para que el push NO falle por payload largo
     t = (texto or "").replace("*", "")
     t = t.replace("\r", "\n")
-    t = " ".join(t.split())  # quita saltos y espacios múltiples
+    t = " ".join(t.split())
     if len(t) > max_len:
-        t = t[:max_len - 1] + "…"
+        t = t[: max_len - 1] + "…"
     return t
+
 
 # -----------------------------------------------------------
 # Guardar última alerta (para ver en grande)
+# ✅ BD + JSON (compatibilidad)
 # -----------------------------------------------------------
-def guardar_ultima_alerta(titulo: str, mensaje: str):
+def guardar_ultima_alerta(
+    titulo: str,
+    mensaje: str,
+    tipo: str = "alerta",
+    operacion_id=None,
+    movimiento_id=None,
+):
+    # 1) Guarda en BD (historial)
+    try:
+        alerta = NotificacionAlerta(
+            tipo=(tipo or "alerta"),
+            titulo=titulo,
+            mensaje=mensaje,
+            fecha=datetime.now(CR_TZ).replace(tzinfo=None),
+            operacion_id=operacion_id,
+            movimiento_id=movimiento_id,
+        )
+        db.session.add(alerta)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("No se pudo guardar alerta en PostgreSQL")
+
+    # 2) Mantiene el JSON (compatibilidad con lo viejo)
     try:
         ruta = os.path.join(current_app.root_path, "last_alert.json")
         data = {
             "titulo": titulo,
             "mensaje": mensaje,
-            "fecha": datetime.now(CR_TZ).strftime("%d/%m/%Y %H:%M:%S")
+            "fecha": datetime.now(CR_TZ).strftime("%d/%m/%Y %H:%M:%S"),
         }
         with open(ruta, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception:
         current_app.logger.exception("No se pudo guardar last_alert.json")
 
+
 # -----------------------------------------------------------
 # Enviar Push usando el MISMO mensaje que WhatsApp
-# ✅ CAMBIO MÍNIMO: ya NO usa push_subs.json, usa PostgreSQL
+# ✅ Ya NO usa push_subs.json, usa PostgreSQL
+# ✅ Cambio mínimo: permite URL param (sigue igual si no lo usas)
 # -----------------------------------------------------------
 def enviar_push_mismo_mensaje(
     mensaje: str,
     titulo: str = "Operación Barco",
-    url: str = "/notificaciones/alerta"
+    url: str = "/notificaciones/alerta",
 ) -> dict:
     try:
         vapid_private = os.getenv("VAPID_PRIVATE_KEY", "")
@@ -73,11 +110,13 @@ def enviar_push_mismo_mensaje(
         if not subs:
             return {"enviados": 0, "fallidos": 0}
 
-        payload = json.dumps({
-            "title": titulo,
-            "body": _push_text(mensaje),
-            "url": url
-        })
+        payload = json.dumps(
+            {
+                "title": titulo,
+                "body": _push_text(mensaje),
+                "url": url,
+            }
+        )
 
         enviados, fallidos = 0, 0
 
@@ -86,21 +125,21 @@ def enviar_push_mismo_mensaje(
                 "endpoint": s.endpoint,
                 "keys": {
                     "p256dh": s.p256dh,
-                    "auth": s.auth
-                }
+                    "auth": s.auth,
+                },
             }
+
             try:
                 webpush(
                     subscription_info=sub_info,
                     data=payload,
                     vapid_private_key=vapid_private,
-                    vapid_claims={"sub": vapid_subject}
+                    vapid_claims={"sub": vapid_subject},
                 )
                 enviados += 1
                 s.last_seen = datetime.utcnow()
 
             except WebPushException:
-                # endpoint muerto => lo borramos para que no estorbe
                 fallidos += 1
                 try:
                     db.session.delete(s)
@@ -115,6 +154,7 @@ def enviar_push_mismo_mensaje(
         current_app.logger.exception("Error enviando push")
         return {"enviados": 0, "fallidos": 0}
 
+
 # -----------------------------------------------------------
 # CHECK VISUAL
 # -----------------------------------------------------------
@@ -126,28 +166,78 @@ def check():
     return render_template(
         "notificacion.html",
         hora_cr=hora_cr,
-        vapid_public_key=vapid_public_key
+        vapid_public_key=vapid_public_key,
     )
+
 
 # -----------------------------------------------------------
 # VER ALERTA EN GRANDE
+# ✅ Pública (sin login)
+# ✅ Lee última en BD
+# ✅ No-cache para evitar que se “pegue”
 # -----------------------------------------------------------
 @notificacion_bp.route("/alerta", methods=["GET"])
 def ver_alerta():
-    ruta = os.path.join(current_app.root_path, "last_alert.json")
-    data = {
-        "titulo": "Sin alertas",
-        "mensaje": "No hay alertas registradas.",
-        "fecha": ""
-    }
-    if os.path.exists(ruta):
-        try:
-            with open(ruta, "r", encoding="utf-8") as f:
-                data = json.load(f) or data
-        except Exception:
-            pass
+    alerta = (
+        NotificacionAlerta.query
+        .order_by(NotificacionAlerta.id.desc())
+        .first()
+    )
 
-    return render_template("alerta_grande.html", **data)
+    if not alerta:
+        data = {
+            "titulo": "Sin alertas",
+            "mensaje": "No hay alertas registradas.",
+            "fecha": "",
+            "tipo": "alerta",
+        }
+    else:
+        data = {
+            "titulo": alerta.titulo,
+            "mensaje": alerta.mensaje,
+            "fecha": alerta.fecha.strftime("%d/%m/%Y %H:%M:%S") if alerta.fecha else "",
+            "tipo": alerta.tipo,
+        }
+
+    resp = make_response(render_template("alerta_grande.html", **data))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
+# -----------------------------------------------------------
+# VER ALERTA POR ID (PÚBLICO)
+# -----------------------------------------------------------
+@notificacion_bp.route("/alerta/<int:alerta_id>", methods=["GET"])
+def ver_alerta_por_id(alerta_id):
+    alerta = NotificacionAlerta.query.get_or_404(alerta_id)
+
+    data = {
+        "titulo": alerta.titulo,
+        "mensaje": alerta.mensaje,
+        "fecha": alerta.fecha.strftime("%d/%m/%Y %H:%M:%S") if alerta.fecha else "",
+        "tipo": alerta.tipo,
+    }
+
+    resp = make_response(render_template("alerta_grande.html", **data))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
+# -----------------------------------------------------------
+# LISTAR ALERTAS (HISTORIAL, PÚBLICO)
+# -----------------------------------------------------------
+@notificacion_bp.route("/alertas", methods=["GET"])
+def listar_alertas():
+    alertas = (
+        NotificacionAlerta.query
+        .order_by(NotificacionAlerta.id.desc())
+        .limit(200)
+        .all()
+    )
+    return render_template("alertas_lista.html", alertas=alertas)
+
 
 # -----------------------------------------------------------
 # PRUEBA MANUAL WHATSAPP
@@ -159,6 +249,7 @@ def test_notificacion():
     mensaje = data.get("mensaje", "🧪 Prueba desde Operación Barco")
     ok = enviar_notificacion(mensaje)
     return jsonify({"ok": bool(ok)}), (200 if ok else 500)
+
 
 # -----------------------------------------------------------
 # EMERGENCIAS AUTOMÁTICAS
@@ -180,6 +271,9 @@ def alerta_emergencia():
                 continue
 
         placa = Placa.query.get(mov.placa_id)
+        if not placa:
+            continue
+
         nombre_chofer = placa.propietario or "Chofer no registrado"
 
         h, r = divmod(tiempo_trans.seconds, 3600)
@@ -199,7 +293,17 @@ def alerta_emergencia():
         )
 
         enviar_notificacion(mensaje)
-        guardar_ultima_alerta("🚨 Emergencia: +20 min", mensaje)
+
+        guardar_ultima_alerta(
+            "🚨 Emergencia: +20 min",
+            mensaje,
+            tipo="emergencia",
+            operacion_id=getattr(mov, "operacion_id", None),
+            movimiento_id=mov.id,
+        )
+
+        # ✅ Si quisieras que el push abra esa alerta exacta:
+        # (ahora mismo sigue abriendo /alerta, no rompe nada)
         enviar_push_mismo_mensaje(mensaje, "🚨 Emergencia: +20 min")
 
         mov.ultima_notificacion = ahora
@@ -224,6 +328,8 @@ def alerta_emergencia():
 
                 placa_x = Placa.query.get(mov_x.placa_id)
                 placa_y = Placa.query.get(mov_y.placa_id)
+                if not placa_x or not placa_y:
+                    continue
 
                 mensaje = (
                     "🚨 *ALERTA DE ORDEN INCORRECTO*\n\n"
@@ -237,23 +343,32 @@ def alerta_emergencia():
                 )
 
                 enviar_notificacion(mensaje)
-                guardar_ultima_alerta("🚨 Orden incorrecto", mensaje)
+
+                guardar_ultima_alerta(
+                    "🚨 Orden incorrecto",
+                    mensaje,
+                    tipo="alerta",
+                    operacion_id=getattr(mov_x, "operacion_id", None),
+                    movimiento_id=mov_x.id,
+                )
+
                 enviar_push_mismo_mensaje(mensaje, "🚨 Orden incorrecto")
 
                 mov_x.alerta_orden_enviada = True
                 db.session.commit()
                 total_alertas += 1
 
-    return jsonify({
-        "status": "ok",
-        "alertas_enviadas": total_alertas,
-        "timestamp": ahora.strftime("%d/%m/%Y %H:%M:%S")
-    })
+    return jsonify(
+        {
+            "status": "ok",
+            "alertas_enviadas": total_alertas,
+            "timestamp": ahora.strftime("%d/%m/%Y %H:%M:%S"),
+        }
+    )
+
 
 # -----------------------------------------------------------
-# PUSH: SUSCRIBIR DISPOSITIVO
-# ✅ CAMBIO MÍNIMO: guarda en PostgreSQL (persistente)
-# ✅ NUEVO: rescate automático si aún existe push_subs.json
+# PUSH: SUSCRIBIR DISPOSITIVO (PostgreSQL)
 # -----------------------------------------------------------
 @notificacion_bp.route("/api/push/subscribe", methods=["POST"])
 @login_required
@@ -269,9 +384,7 @@ def push_subscribe():
         if not endpoint or not p256dh or not auth:
             return jsonify({"error": "Suscripción inválida"}), 400
 
-        # ♻️ RESCATE AUTOMÁTICO:
-        # Si todavía existe push_subs.json (deploy viejo), lo migra a Postgres
-        # sin afectar el flujo normal.
+        # ♻️ RESCATE AUTOMÁTICO desde push_subs.json (si existe)
         try:
             ruta_json = os.path.join(current_app.root_path, "push_subs.json")
             if os.path.exists(ruta_json):
@@ -292,7 +405,6 @@ def push_subscribe():
                 db.session.commit()
         except Exception:
             db.session.rollback()
-            # Es respaldo, no tumbamos el subscribe
             pass
 
         sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
@@ -312,9 +424,9 @@ def push_subscribe():
         current_app.logger.exception("Error guardando suscripción push")
         return jsonify({"error": "No se pudo guardar la suscripción"}), 500
 
+
 # -----------------------------------------------------------
-# PUSH: ESTADO
-# ✅ CAMBIO MÍNIMO: cuenta desde PostgreSQL
+# PUSH: ESTADO (cuenta desde PostgreSQL)
 # -----------------------------------------------------------
 @notificacion_bp.route("/api/push/status", methods=["GET"])
 @login_required
@@ -326,9 +438,9 @@ def push_status():
         current_app.logger.exception("Error consultando status push")
         return jsonify({"dispositivos": 0})
 
+
 # -----------------------------------------------------------
 # PUSH: PRUEBA MANUAL
-# (sin cambios, ya usa enviar_push_mismo_mensaje)
 # -----------------------------------------------------------
 @notificacion_bp.route("/api/push/send", methods=["POST"])
 @login_required
@@ -338,19 +450,14 @@ def push_send():
     r = enviar_push_mismo_mensaje(mensaje, "Operación Barco")
     return jsonify({"status": "ok", **r})
 
+
 # -----------------------------------------------------------
-# ✅ MIGRACIÓN 1 VEZ: pasar push_subs.json -> PostgreSQL
-# ✅ PROTEGIDA: SOLO Admin
+# MIGRACIÓN 1 VEZ: push_subs.json -> PostgreSQL (SOLO Admin)
 # -----------------------------------------------------------
 @notificacion_bp.route("/api/push/migrate", methods=["POST"])
 @login_required
 def push_migrate():
-    """
-    Migra las suscripciones guardadas en push_subs.json hacia PostgreSQL.
-    Se ejecuta 1 vez y luego se recomienda borrar esta ruta.
-    """
     try:
-        # 🔒 SOLO ADMIN
         if getattr(current_user, "rol", "") != "Admin":
             return jsonify({"ok": False, "error": "No autorizado"}), 403
 
@@ -378,25 +485,22 @@ def push_migrate():
 
             existe = PushSubscription.query.filter_by(endpoint=endpoint).first()
             if not existe:
-                db.session.add(PushSubscription(
-                    endpoint=endpoint,
-                    p256dh=p256dh,
-                    auth=auth
-                ))
+                db.session.add(
+                    PushSubscription(
+                        endpoint=endpoint,
+                        p256dh=p256dh,
+                        auth=auth,
+                    )
+                )
                 migrados += 1
             else:
-                # si ya existía, solo actualiza llaves
                 existe.p256dh = p256dh
                 existe.auth = auth
                 existe.last_seen = datetime.utcnow()
 
         db.session.commit()
 
-        return jsonify({
-            "ok": True,
-            "migrados": migrados,
-            "total_en_json": len(subs)
-        }), 200
+        return jsonify({"ok": True, "migrados": migrados, "total_en_json": len(subs)}), 200
 
     except Exception as e:
         db.session.rollback()

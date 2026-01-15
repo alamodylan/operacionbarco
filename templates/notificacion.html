@@ -61,7 +61,6 @@
             transform: scale(1.05);
         }
 
-        /* Botones nuevos */
         .btn-push {
             display: inline-block;
             margin-top: 14px;
@@ -78,6 +77,7 @@
             background-color: #1b5e20;
             transform: scale(1.05);
         }
+
         .btn-test {
             display: inline-block;
             margin-top: 10px;
@@ -94,45 +94,70 @@
             background-color: #4a148c;
             transform: scale(1.05);
         }
+
+        /* ✅ NUEVO: botón historial */
+        .btn-historial {
+            display: inline-block;
+            margin-top: 10px;
+            background-color: #455a64;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-decoration: none;
+        }
+        .btn-historial:hover {
+            background-color: #263238;
+            transform: scale(1.05);
+        }
     </style>
 </head>
+
 <body>
     <div class="card">
         <div class="emoji">✅</div>
         <div class="status">Sistema de notificaciones activo</div>
         <div class="time">Hora local: {{ hora_cr }}</div>
 
-        <!-- NUEVO: activar push -->
+        <!-- Activar push -->
         <button class="btn-push" onclick="activarNotificaciones()">
             🔔 Activar notificaciones (Push)
         </button>
 
-        <!-- NUEVO: prueba rápida (opcional) -->
+        <!-- Prueba rápida -->
         <button class="btn-test" onclick="probarNotificacion()">
             🧪 Probar notificación
         </button>
 
-        <a href="{{ url_for('dashboard') }}" class="btn-volver">⬅ Volver al inicio</a>
-        <div class="footer">Operación Barco - Módulo WhatsApp</div>
+        <!-- ✅ NUEVO: Ver historial -->
+        <a href="/notificaciones/alertas" class="btn-historial">
+            📜 Ver historial de alertas
+        </a>
+
+        <a href="{{ url_for('dashboard') }}" class="btn-volver">
+            ⬅ Volver al inicio
+        </a>
+
+        <div class="footer">Operación Barco - Módulo Notificaciones</div>
     </div>
 
-    <!-- Tu JS nuevo -->
+    <!-- JS Push -->
     <script>
         window.VAPID_PUBLIC_KEY = "{{ vapid_public_key|default('') }}";
     </script>
 
     <script src="{{ url_for('static', filename='js/push.js') }}"></script>
 
-    <!-- ✅ NUEVO: Sync silencioso (sin pedir permisos, sin botón) -->
+    <!-- Sync silencioso -->
     <script>
       document.addEventListener("DOMContentLoaded", async () => {
         try {
           if (!("serviceWorker" in navigator)) return;
 
-          // registra/asegura SW
           const registro = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-
-          // si ya existe suscripción en el navegador, la re-guardamos en backend
           const subExistente = await registro.pushManager.getSubscription();
           if (!subExistente) return;
 
@@ -141,8 +166,6 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(subExistente)
           });
-
-          // no mostramos alertas: esto es silencioso a propósito
         } catch (e) {
           console.log("Sync silencioso push falló:", e);
         }

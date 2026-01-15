@@ -14,15 +14,11 @@ self.addEventListener("push", (event) => {
     body,
     data: { url },
 
-    // ✅ Android-friendly: icono/badge ayudan a que se vea más “serio”
+    // ✅ Android-friendly
     icon: "/static/icons/icon-192.png",
     badge: "/static/icons/badge-72.png",
 
-    // ✅ Vibra (si el dispositivo lo permite y el canal lo deja)
     vibrate: [200, 100, 200],
-
-    // ✅ Cada push separada (NO tag fijo)
-    // requireInteraction: true // en Android suele ignorarse, lo dejo comentado
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -31,19 +27,33 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const url = event.notification?.data?.url || "/notificaciones/alerta";
+  const rawUrl = event.notification?.data?.url || "/notificaciones/alerta";
+  const targetUrl = new URL(rawUrl, self.location.origin).toString(); // ✅ absoluta
 
-  event.waitUntil((async () => {
-    const allClients = await clients.matchAll({ type: "window", includeUncontrolled: true });
+  event.waitUntil(
+    (async () => {
+      const allClients = await clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
 
-    for (const client of allClients) {
-      if (client.url.startsWith(self.location.origin)) {
-        await client.focus();
-        try { await client.navigate(url); } catch (e) {}
-        return;
+      // Si ya hay una pestaña/ventana abierta del sitio, úsala
+      for (const client of allClients) {
+        if (client.url.startsWith(self.location.origin)) {
+          await client.focus();
+
+          // ✅ Si ya está en esa URL exacta, no navegues (evita "trabas")
+          if (client.url !== targetUrl) {
+            try {
+              await client.navigate(targetUrl);
+            } catch (e) {}
+          }
+          return;
+        }
       }
-    }
 
-    await clients.openWindow(url);
-  })());
+      // Si no hay ninguna, abre una nueva
+      await clients.openWindow(targetUrl);
+    })()
+  );
 });
