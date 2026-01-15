@@ -9,10 +9,21 @@
     <h2 class="fw-bold">🚛 Placas registradas</h2>
 
     {% if placas %}
-      <!-- ✅ ÚNICO BOTÓN EDITAR -->
-      <button id="btnEditar" type="button" class="btn btn-outline-primary">
-        ✏️ Editar
-      </button>
+      <div class="d-flex align-items-center gap-2">
+        <!-- ✅ ÚNICO BOTÓN EDITAR -->
+        <button id="btnEditar" type="button" class="btn btn-outline-primary">
+          ✏️ Editar
+        </button>
+
+        <!-- ✅ Botón Excel pequeño y elegante -->
+        <a
+          href="{{ url_for('placa_bp.exportar_placas_excel') }}"
+          class="btn btn-sm btn-outline-success"
+          title="Exportar a Excel"
+        >
+          📊 Excel
+        </a>
+      </div>
     {% endif %}
   </div>
 

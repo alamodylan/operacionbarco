@@ -7,11 +7,17 @@ from flask import (
     url_for,
     flash,
     current_app,
+    send_file,   # ✅ NUEVO
 )
 from flask_login import login_required, current_user
 
 from models.base import db
 from models.placa import Placa
+from io import BytesIO
+from datetime import datetime
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
+from openpyxl.utils import get_column_letter
 
 
 placa_bp = Blueprint("placa_bp", __name__)
@@ -205,4 +211,84 @@ def actualizar_placas_batch():
         db.session.rollback()
         current_app.logger.exception(f"Error en actualizar_placas_batch: {e}")
         flash(f"❌ Error al guardar cambios: {str(e)}", "danger")
+        return redirect(url_for("placa_bp.listar_placas"))
+    
+# -----------------------------------------------------------
+# ✅ Exportar placas a Excel (XLSX)
+# -----------------------------------------------------------
+@placa_bp.route("/export/excel", methods=["GET"])
+@login_required
+def exportar_placas_excel():
+    try:
+        placas = Placa.query.order_by(Placa.fecha_registro.desc()).all()
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Placas"
+
+        headers = [
+            "ID",
+            "Placa",
+            "Propietario",
+            "Color Cabezal",
+            "Identificador Fijo",
+            "Estado",
+            "Fecha Registro",
+            "Usuario ID",
+        ]
+        ws.append(headers)
+
+        # Estilo encabezados
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        # Datos
+        for p in placas:
+            fecha = getattr(p, "fecha_registro", None)
+            if fecha:
+                # Si viene con tz o raro, lo dejamos como string bonito
+                try:
+                    fecha = fecha.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    fecha = str(fecha)
+
+            ws.append([
+                p.id,
+                p.numero_placa,
+                p.propietario or "",
+                p.color_cabezal or "",
+                getattr(p, "identificador_fijo", None) or "",
+                getattr(p, "estado", None) or "",
+                fecha or "",
+                getattr(p, "usuario_id", None) or "",
+            ])
+
+        # Auto-ajustar columnas (con límite para que no se haga gigante)
+        for col in range(1, len(headers) + 1):
+            col_letter = get_column_letter(col)
+            max_len = 12
+            for cell in ws[col_letter]:
+                val = "" if cell.value is None else str(cell.value)
+                max_len = max(max_len, len(val))
+            ws.column_dimensions[col_letter].width = min(max_len + 2, 45)
+
+        # Guardar en memoria
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        filename = f"placas_{datetime.now().strftime('%Y-%m-%d_%H%M')}.xlsx"
+
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    except Exception as e:
+        current_app.logger.exception(f"Error al exportar placas a Excel: {e}")
+        flash("❌ Ocurrió un error exportando a Excel.", "danger")
         return redirect(url_for("placa_bp.listar_placas"))

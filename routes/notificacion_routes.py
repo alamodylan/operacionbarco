@@ -57,8 +57,10 @@ def guardar_ultima_alerta(
     mensaje: str,
     tipo: str = "alerta",
     operacion_id=None,
-    movimiento_id=None,
+    movimiento_id=None
 ):
+    alerta_id = None
+
     # 1) Guarda en BD (historial)
     try:
         alerta = NotificacionAlerta(
@@ -67,26 +69,29 @@ def guardar_ultima_alerta(
             mensaje=mensaje,
             fecha=datetime.now(CR_TZ).replace(tzinfo=None),
             operacion_id=operacion_id,
-            movimiento_id=movimiento_id,
+            movimiento_id=movimiento_id
         )
         db.session.add(alerta)
         db.session.commit()
+        alerta_id = alerta.id
     except Exception:
         db.session.rollback()
         current_app.logger.exception("No se pudo guardar alerta en PostgreSQL")
 
-    # 2) Mantiene el JSON (compatibilidad con lo viejo)
+    # 2) Mantiene JSON (compatibilidad)
     try:
         ruta = os.path.join(current_app.root_path, "last_alert.json")
         data = {
             "titulo": titulo,
             "mensaje": mensaje,
-            "fecha": datetime.now(CR_TZ).strftime("%d/%m/%Y %H:%M:%S"),
+            "fecha": datetime.now(CR_TZ).strftime("%d/%m/%Y %H:%M:%S")
         }
         with open(ruta, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception:
         current_app.logger.exception("No se pudo guardar last_alert.json")
+
+    return alerta_id
 
 
 # -----------------------------------------------------------
@@ -294,17 +299,16 @@ def alerta_emergencia():
 
         enviar_notificacion(mensaje)
 
-        guardar_ultima_alerta(
+        alerta_id = guardar_ultima_alerta(
             "🚨 Emergencia: +20 min",
             mensaje,
             tipo="emergencia",
             operacion_id=getattr(mov, "operacion_id", None),
             movimiento_id=mov.id,
         )
+        url_alerta = f"/notificaciones/alerta/{alerta_id}" if alerta_id else "/notificaciones/alerta"
+        enviar_push_mismo_mensaje(mensaje, "🚨 Emergencia: +20 min", url=url_alerta)
 
-        # ✅ Si quisieras que el push abra esa alerta exacta:
-        # (ahora mismo sigue abriendo /alerta, no rompe nada)
-        enviar_push_mismo_mensaje(mensaje, "🚨 Emergencia: +20 min")
 
         mov.ultima_notificacion = ahora
         db.session.commit()
@@ -344,15 +348,15 @@ def alerta_emergencia():
 
                 enviar_notificacion(mensaje)
 
-                guardar_ultima_alerta(
+                alerta_id = guardar_ultima_alerta(
                     "🚨 Orden incorrecto",
                     mensaje,
                     tipo="alerta",
                     operacion_id=getattr(mov_x, "operacion_id", None),
                     movimiento_id=mov_x.id,
                 )
-
-                enviar_push_mismo_mensaje(mensaje, "🚨 Orden incorrecto")
+                url_alerta = f"/notificaciones/alerta/{alerta_id}" if alerta_id else "/notificaciones/alerta"
+                enviar_push_mismo_mensaje(mensaje, "🚨 Orden incorrecto", url=url_alerta)     
 
                 mov_x.alerta_orden_enviada = True
                 db.session.commit()
