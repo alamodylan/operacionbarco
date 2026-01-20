@@ -23,6 +23,9 @@ from models.push_subscription import PushSubscription
 # ✅ Historial de alertas web (PostgreSQL)
 from models.notificacion_alerta import NotificacionAlerta
 
+# ✅ NUEVO: Config tiempos (import/export)
+from models.tiempo import ConfigTiempos
+
 
 # -----------------------------------------------------------
 # Blueprint
@@ -265,14 +268,36 @@ def alerta_emergencia():
     movimientos = MovimientoBarco.query.filter_by(estado="en_ruta").all()
     total_alertas = 0
 
-    # 1) +20 MINUTOS EN RUTA
+    # ✅ Leer configuración de tiempos UNA vez
+    cfg = ConfigTiempos.query.order_by(ConfigTiempos.id.desc()).first()
+    min_import = int(getattr(cfg, "min_import", 20)) if cfg else 20
+    min_export = int(getattr(cfg, "min_export", 20)) if cfg else 20
+
+    # 1) ALERTA POR TIEMPO (import/export) + re-alerta cada 4 minutos
     for mov in movimientos:
-        tiempo_trans = ahora - mov.hora_salida
-        if tiempo_trans < timedelta(minutes=20):
+        if not mov.hora_salida:
             continue
 
+        # ✅ Tipo de operación desde la operación asociada
+        tipo = ""
+        try:
+            tipo = (mov.operacion.tipo_operacion or "").strip().lower()
+        except Exception:
+            tipo = ""
+
+        # fallback seguro
+        if tipo not in ["importacion", "exportacion"]:
+            tipo = "exportacion"
+
+        umbral_min = min_import if tipo == "importacion" else min_export
+
+        tiempo_trans = ahora - mov.hora_salida
+        if tiempo_trans < timedelta(minutes=umbral_min):
+            continue
+
+        # ✅ Re-alerta cada 4 minutos (después de la primera)
         if mov.ultima_notificacion:
-            if (ahora - mov.ultima_notificacion) < timedelta(minutes=2):
+            if (ahora - mov.ultima_notificacion) < timedelta(minutes=4):
                 continue
 
         placa = Placa.query.get(mov.placa_id)
@@ -284,10 +309,13 @@ def alerta_emergencia():
         h, r = divmod(tiempo_trans.seconds, 3600)
         m, s = divmod(r, 60)
 
+        tipo_label = "IMPORTACIÓN" if tipo == "importacion" else "EXPORTACIÓN"
+
         mensaje = (
             "🚨🚨🚨🚨🚨🚨🚨🚨🚨\n"
             "*ALERTA DE EMERGENCIA*\n"
-            "Un vehículo lleva *más de 20 minutos sin cerrarse*.\n\n"
+            f"Un vehículo lleva *más de {umbral_min} minutos sin cerrarse*.\n\n"
+            f"📌 Tipo: {tipo_label}\n"
             f"👤 Chofer: {nombre_chofer}\n"
             f"🚛 Placa: {placa.numero_placa}\n"
             f"🎨 Color cabezal: {placa.color_cabezal or 'No registrado'}\n"
@@ -300,21 +328,20 @@ def alerta_emergencia():
         enviar_notificacion(mensaje)
 
         alerta_id = guardar_ultima_alerta(
-            "🚨 Emergencia: +20 min",
+            f"🚨 Emergencia: {tipo_label}",
             mensaje,
             tipo="emergencia",
             operacion_id=getattr(mov, "operacion_id", None),
             movimiento_id=mov.id,
         )
         url_alerta = f"/notificaciones/alerta/{alerta_id}" if alerta_id else "/notificaciones/alerta"
-        enviar_push_mismo_mensaje(mensaje, "🚨 Emergencia: +20 min", url=url_alerta)
-
+        enviar_push_mismo_mensaje(mensaje, f"🚨 Emergencia: {tipo_label}", url=url_alerta)
 
         mov.ultima_notificacion = ahora
         db.session.commit()
         total_alertas += 1
 
-    # 2) ORDEN INCORRECTO
+    # 2) ORDEN INCORRECTO (SIN CAMBIOS)
     todos = MovimientoBarco.query.all()
     orden_salida = sorted(todos, key=lambda m: m.hora_salida)
 
@@ -356,7 +383,7 @@ def alerta_emergencia():
                     movimiento_id=mov_x.id,
                 )
                 url_alerta = f"/notificaciones/alerta/{alerta_id}" if alerta_id else "/notificaciones/alerta"
-                enviar_push_mismo_mensaje(mensaje, "🚨 Orden incorrecto", url=url_alerta)     
+                enviar_push_mismo_mensaje(mensaje, "🚨 Orden incorrecto", url=url_alerta)
 
                 mov_x.alerta_orden_enviada = True
                 db.session.commit()
@@ -367,6 +394,8 @@ def alerta_emergencia():
             "status": "ok",
             "alertas_enviadas": total_alertas,
             "timestamp": ahora.strftime("%d/%m/%Y %H:%M:%S"),
+            "min_import": min_import,
+            "min_export": min_export,
         }
     )
 

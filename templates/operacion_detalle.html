@@ -77,7 +77,7 @@
               <small class="text-muted">Identificador fijo</small>
             </div>
 
-            <!-- ✅ Hidden: mandamos el contenedor/identificador sin pedirlo al usuario -->
+            <!-- Hidden: contenedor -->
             <input type="hidden" id="contenedorHidden" name="contenedor" required>
 
             <div class="col-md-2 d-grid">
@@ -96,6 +96,7 @@
         <tr>
           <th>#</th>
           <th>Placa</th>
+          <th>Chofer</th>
           <th>N° Identificador</th>
           <th>Hora salida</th>
           <th>Hora llegada</th>
@@ -117,6 +118,12 @@
             <tr>
               <td>{{ loop.index }}</td>
               <td>{{ mov.placa.numero_placa }}</td>
+
+              <!-- ✅ NUEVO: Chofer -->
+              <td>
+                {{ mov.placa.propietario or '—' }}
+              </td>
+
               <td>{{ mov.contenedor }}</td>
               <td>{{ mov.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
 
@@ -159,7 +166,7 @@
           {% endfor %}
         {% else %}
           <tr>
-            <td colspan="8" class="text-center text-muted">
+            <td colspan="9" class="text-center text-muted">
               No hay movimientos registrados en esta operación.
             </td>
           </tr>
@@ -173,7 +180,7 @@
   </a>
 </div>
 
-<!-- ✅ Script: llena contenedorHidden con el identificador fijo seleccionado -->
+<!-- Script: llena contenedorHidden con el identificador fijo seleccionado -->
 <script>
   (function () {
     const select = document.getElementById("selectIdentificador");
@@ -185,10 +192,7 @@
       hidden.value = opt ? (opt.getAttribute("data-identificador") || "") : "";
     }
 
-    // bootstrap-select
     $(select).on("changed.bs.select", syncHidden);
-
-    // ✅ set al cargar (por si hay default)
     document.addEventListener("DOMContentLoaded", syncHidden);
   })();
 </script>
