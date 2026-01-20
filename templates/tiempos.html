@@ -1,0 +1,97 @@
+{# templates/tiempos.html #}
+{% extends "base.html" %}
+
+{% block title %}Tiempos de Notificación{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold">⏱️ Tiempos de notificación</h2>
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+      Solo Admin
+    </span>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+
+      <p class="text-muted mb-4">
+        Configurá cuándo debe iniciar la primera alerta para cada tipo de operación.
+        <br>
+        Después de la primera alerta, el sistema seguirá notificando <b>cada 4 minutos</b> mientras el movimiento esté <b>en ruta</b>.
+      </p>
+
+      <form method="POST" action="{{ url_for('tiempos_bp.guardar_tiempos') }}">
+        <div class="row g-3">
+
+          <!-- Importación -->
+          <div class="col-md-6">
+            <div class="p-3 border rounded-3 bg-light">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h5 class="mb-0">📥 Importación</h5>
+                <span class="badge bg-dark">min</span>
+              </div>
+
+              <label class="form-label">Iniciar alerta a los</label>
+              <select name="min_import" class="form-select">
+                {% for m in range(14, 42, 2) %}
+                  <option value="{{ m }}" {% if cfg and cfg.min_import == m %}selected{% endif %}>
+                    {{ m }} minutos
+                  </option>
+                {% endfor %}
+              </select>
+
+              <div class="form-text">
+                Aplica a operaciones con <code>tipo_operacion = "importacion"</code>.
+              </div>
+            </div>
+          </div>
+
+          <!-- Exportación -->
+          <div class="col-md-6">
+            <div class="p-3 border rounded-3 bg-light">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h5 class="mb-0">📤 Exportación</h5>
+                <span class="badge bg-dark">min</span>
+              </div>
+
+              <label class="form-label">Iniciar alerta a los</label>
+              <select name="min_export" class="form-select">
+                {% for m in range(14, 42, 2) %}
+                  <option value="{{ m }}" {% if cfg and cfg.min_export == m %}selected{% endif %}>
+                    {{ m }} minutos
+                  </option>
+                {% endfor %}
+              </select>
+
+              <div class="form-text">
+                Aplica a operaciones con <code>tipo_operacion = "exportacion"</code>.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="d-flex justify-content-end mt-4">
+          <button type="submit" class="btn btn-sm btn-success px-4">
+            💾 Guardar
+          </button>
+        </div>
+
+      </form>
+
+      {% if cfg %}
+        <hr class="my-4">
+        <div class="text-muted small">
+          Config actual:
+          <b>Importación:</b> {{ cfg.min_import }} min ·
+          <b>Exportación:</b> {{ cfg.min_export }} min
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

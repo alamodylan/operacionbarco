@@ -74,6 +74,12 @@
 
                     {% if current_user.is_authenticated and current_user.rol == 'Admin' %}
                     <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('tiempos_bp.ver_tiempos') }}">Tiempos</a>
+                    </li>
+                    {% endif %}
+
+                    {% if current_user.is_authenticated and current_user.rol == 'Admin' %}
+                    <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('usuario_bp.listar_usuarios') }}">Usuarios</a>
                     </li>
                     {% endif %}

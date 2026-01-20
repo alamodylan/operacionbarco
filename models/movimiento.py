@@ -1,3 +1,4 @@
+# models/movimiento.py
 from datetime import datetime
 import pytz
 from models.base import db
@@ -10,6 +11,10 @@ from flask import current_app
 from pywebpush import webpush, WebPushException
 from models.push_subscription import PushSubscription
 from flask import has_app_context
+
+# ✅ NUEVO: para determinar umbral por import/export al cerrar
+from models.tiempo import ConfigTiempos
+from models.operacion import Operacion
 
 CR_TZ = pytz.timezone("America/Costa_Rica")
 
@@ -73,7 +78,9 @@ class MovimientoBarco(db.Model):
             return True
 
         minutos = (ahora - self.ultima_notificacion).total_seconds() / 60
-        return minutos >= 3
+
+        # ✅ AJUSTE: después de la primera alerta, re-notificar cada 4 minutos
+        return minutos >= 4
 
     def marcar_notificado(self):
         self.ultima_notificacion = self._ahora()
@@ -173,10 +180,21 @@ class MovimientoBarco(db.Model):
         # Detectar si el viaje estaba en emergencia antes de cerrar
         estaba_en_emergencia = False
 
-        # Condición 1: más de 15 minutos en ruta
+        # Condición 1: más de X minutos en ruta (según import/export configurado)
         if self.estado == "en_ruta" and self.hora_salida:
             minutos = (ahora - self.hora_salida).total_seconds() / 60
-            if minutos >= 20:
+
+            # ✅ AJUSTE: umbral configurable por tipo de operación
+            cfg = ConfigTiempos.query.order_by(ConfigTiempos.id.desc()).first()
+            min_import = cfg.min_import if cfg else 20
+            min_export = cfg.min_export if cfg else 30
+
+            oper = Operacion.query.get(self.operacion_id)
+            tipo = (getattr(oper, "tipo_operacion", "") or "").strip().lower()
+
+            umbral = min_import if tipo == "importacion" else min_export
+
+            if minutos >= umbral:
                 estaba_en_emergencia = True
 
         # Condición 2: tenía alertas enviadas

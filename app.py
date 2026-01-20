@@ -13,6 +13,11 @@ from models.usuario import Usuario, bcrypt
 from models.movimiento import MovimientoBarco
 from models.notificacion import enviar_notificacion
 
+# ✅ NUEVO: tiempos configurables (import/export)
+from models.tiempo import ConfigTiempos
+# ✅ NUEVO: para saber si la operación es importacion/exportacion
+from models.operacion import Operacion
+
 # Blueprints
 from routes.auth_routes import auth_bp
 from routes.placa_routes import placa_bp
@@ -20,6 +25,7 @@ from routes.operacion_routes import operacion_bp
 from routes.movimiento_routes import movimiento_bp
 from routes.notificacion_routes import notificacion_bp
 from routes.usuario_routes import usuario_bp
+from routes.tiempos import tiempos_bp
 
 
 # -----------------------------------------------------------
@@ -40,11 +46,12 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # ✅ CAMBIO CLAVE: sesión persistente real (móvil friendly)
+    # ✅ Sesión persistente real (móvil friendly)
+    # (Si ya lo tienes en Config, esto no estorba: solo refuerza)
     app.config["SESSION_PERMANENT"] = True
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=1)
 
-    # ✅ CAMBIO CLAVE: cookies más estables/seguras (Render usa HTTPS)
+    # ✅ Cookies más estables/seguras (Render usa HTTPS)
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = True
@@ -66,14 +73,14 @@ def create_app():
     login_manager.needs_refresh_message_category = "info"
     login_manager.init_app(app)
 
-    # ✅ CAMBIO CLAVE: evita cierres raros en móvil/redes cambiantes
+    # ✅ Evita cierres raros en móvil/redes cambiantes
     login_manager.session_protection = "basic"
 
     @login_manager.user_loader
     def load_user(user_id):
         return Usuario.query.get(int(user_id))
 
-    # ✅ CAMBIO CLAVE: mantener sesión permanente en cada request
+    # ✅ Mantener sesión permanente en cada request
     @app.before_request
     def mantener_sesion():
         session.permanent = True
@@ -87,6 +94,7 @@ def create_app():
     app.register_blueprint(movimiento_bp)
     app.register_blueprint(notificacion_bp)
     app.register_blueprint(usuario_bp)
+    app.register_blueprint(tiempos_bp)
 
     # -------------------------------------------------------
     # Service Worker (scope raíz)
@@ -140,8 +148,10 @@ def create_app():
 # -----------------------------------------------------------
 def verificar_movimientos_periodicamente(app):
     """
-    Revisa cada minuto si hay movimientos en ruta por más de 20 minutos
-    y reenvía alertas cada 4 minutos mientras sigan abiertos.
+    Revisa cada minuto los movimientos en ruta y:
+    - Si la operación es importacion: alerta al pasar el tiempo configurado para importación.
+    - Si la operación es exportacion: alerta al pasar el tiempo configurado para exportación.
+    - Luego de la primera alerta, reenvía cada 4 minutos mientras sigan abiertos.
     """
     ultima_alerta = {}
 
@@ -156,18 +166,40 @@ def verificar_movimientos_periodicamente(app):
                     datetime.now(CR_TZ).strftime("%H:%M:%S %d/%m/%Y"),
                 )
 
+                # ✅ Leer configuración UNA vez por ciclo
+                cfg = ConfigTiempos.query.order_by(ConfigTiempos.id.desc()).first()
+                min_import = cfg.min_import if cfg else 20
+                min_export = cfg.min_export if cfg else 30
+
                 for mov in movimientos:
                     if not mov.hora_salida:
                         continue
 
                     minutos = (ahora - mov.hora_salida).total_seconds() / 60
 
-                    if minutos >= 20:
+                    # ✅ Determinar tipo desde la OPERACIÓN creada (importacion/exportacion)
+                    oper = Operacion.query.get(mov.operacion_id)
+                    tipo = (getattr(oper, "tipo_operacion", "") or "").strip().lower()
+
+                    # ✅ Umbral por tipo
+                    if tipo == "importacion":
+                        umbral = min_import
+                        tipo_label = "IMPORTACIÓN"
+                    else:
+                        # fallback seguro: si no es importacion, tratamos como exportacion
+                        umbral = min_export
+                        tipo_label = "EXPORTACIÓN"
+
+                    # ✅ Primera alerta según umbral
+                    if minutos >= umbral:
                         ultimo_envio = ultima_alerta.get(mov.id)
 
+                        # ✅ Reenviar cada 4 minutos después de la primera
                         if not ultimo_envio or (ahora - ultimo_envio).total_seconds() >= 240:
                             mensaje = (
                                 "🚨 *ALERTA DE RETRASO EN RUTA!*\n"
+                                f"📌 Tipo: {tipo_label}\n"
+                                f"🎯 Umbral: {umbral} min\n"
                                 f"🧱 Contenedor: {mov.contenedor}\n"
                                 f"🚛 Placa: {mov.placa.numero_placa}\n"
                                 f"👨‍🔧 Chofer: {mov.placa.propietario or 'Desconocido'}\n"
