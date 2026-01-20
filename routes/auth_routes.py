@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
-from flask_login import login_user, logout_user, login_required, current_user
+from flask_login import login_user, logout_user, login_required
 from models.base import db
 from models.usuario import Usuario
 
@@ -9,14 +9,17 @@ auth_bp = Blueprint("auth_bp", __name__, url_prefix="/auth")
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
-        password = request.form.get("password", "")
+        email = (request.form.get("email") or "").strip()
+        password = request.form.get("password") or ""
 
         user = Usuario.query.filter_by(email=email).first()
         if user and user.check_password(password):
-            # 🔒 Marca la sesión como "permanente" para aplicar timeout de Flask
+            # ✅ Login (mejor estabilidad móvil)
+            login_user(user, remember=True)
+
+            # ✅ Marcar sesión como permanente para aplicar lifetime
             session.permanent = True
-            login_user(user)
+
             flash(f"Bienvenido, {user.nombre}", "success")
 
             # 🚀 Redirigir según el rol del usuario
@@ -24,8 +27,8 @@ def login():
                 return redirect(url_for("placa_bp.listar_placas"))
             else:
                 return redirect(url_for("operacion_bp.listar_operaciones"))
-        else:
-            flash("Correo o contraseña incorrectos", "danger")
+
+        flash("Correo o contraseña incorrectos", "danger")
 
     return render_template("login.html")
 

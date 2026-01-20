@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template, send_from_directory, session
 from flask_login import LoginManager, login_required, current_user
 from datetime import datetime, timedelta
 import pytz
@@ -40,8 +40,14 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # 🔒 Duración de sesión
-    app.permanent_session_lifetime = timedelta(minutes=30)
+    # ✅ CAMBIO CLAVE: sesión persistente real (móvil friendly)
+    app.config["SESSION_PERMANENT"] = True
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=1)
+
+    # ✅ CAMBIO CLAVE: cookies más estables/seguras (Render usa HTTPS)
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_SECURE"] = True
 
     # -------------------------------------------------------
     # Inicializar extensiones
@@ -60,9 +66,17 @@ def create_app():
     login_manager.needs_refresh_message_category = "info"
     login_manager.init_app(app)
 
+    # ✅ CAMBIO CLAVE: evita cierres raros en móvil/redes cambiantes
+    login_manager.session_protection = "basic"
+
     @login_manager.user_loader
     def load_user(user_id):
         return Usuario.query.get(int(user_id))
+
+    # ✅ CAMBIO CLAVE: mantener sesión permanente en cada request
+    @app.before_request
+    def mantener_sesion():
+        session.permanent = True
 
     # -------------------------------------------------------
     # Registro de Blueprints
