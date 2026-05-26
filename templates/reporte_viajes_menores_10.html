@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Viajes Menores a 10 Minutos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">🚨 Viajes menores a 10 minutos</h2>
+            <p class="text-muted mb-0">
+                Movimientos finalizados con duración menor a 10 minutos.
+            </p>
+        </div>
+
+        <a href="{{ url_for('movimiento_bp.listar_movimientos') }}" class="btn btn-outline-secondary">
+            Volver
+        </a>
+    </div>
+
+    <div class="alert alert-warning">
+        Este reporte ayuda a detectar cierres inusualmente rápidos. Los movimientos antiguos pueden aparecer como
+        <strong>No registrado</strong> porque antes no se guardaba el usuario que cerraba el viaje.
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            {% if registros %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>ID</th>
+                            <th>Placa</th>
+                            <th>Chofer</th>
+                            <th>Identificador</th>
+                            <th>Salida</th>
+                            <th>Llegada</th>
+                            <th>Duración</th>
+                            <th>Cerrado por</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for r in registros %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ r.id }}</td>
+                            <td>{{ r.numero_placa }}</td>
+                            <td class="fw-semibold">{{ r.chofer }}</td>
+                            <td>{{ r.contenedor }}</td>
+                            <td>{{ r.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ r.hora_llegada.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                {% if r.duracion_minutos < 8 %}
+                                    <span class="badge bg-danger">
+                                        {{ r.duracion_minutos }} min
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">
+                                        {{ r.duracion_minutos }} min
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ r.cerrado_por }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if pages > 1 %}
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center flex-wrap">
+
+                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('movimiento_bp.reporte_viajes_menores_10', page=page-1) }}">
+                            Anterior
+                        </a>
+                    </li>
+
+                    {% for p in range(1, pages + 1) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('movimiento_bp.reporte_viajes_menores_10', page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                    {% endfor %}
+
+                    <li class="page-item {% if page >= pages %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('movimiento_bp.reporte_viajes_menores_10', page=page+1) }}">
+                            Siguiente
+                        </a>
+                    </li>
+
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="alert alert-info text-center mb-0">
+                No existen viajes menores a 10 minutos.
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}

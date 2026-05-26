@@ -15,6 +15,7 @@
                 </div>
                 <small>Iniciada el {{ grupo.operacion.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</small>
             </div>
+
             <div class="card-body">
                 {% if grupo.movimientos %}
                 <div class="table-responsive">
@@ -23,6 +24,7 @@
                             <tr>
                                 <th>#</th>
                                 <th>Placa</th>
+                                <th>Chofer</th>
                                 <th>Identificador</th>
                                 <th>Hora salida</th>
                                 <th>Hora llegada</th>
@@ -30,13 +32,24 @@
                                 <th>Estado</th>
                             </tr>
                         </thead>
+
                         <tbody>
                             {% for mov in grupo.movimientos %}
                             <tr>
                                 <td>{{ loop.index }}</td>
-                                <td>{{ mov.placa.numero_placa }}</td>
+
+                                <td>
+                                    {{ mov.placa.numero_placa if mov.placa else 'No registrado' }}
+                                </td>
+
+                                <td>
+                                    {{ mov.placa.propietario if mov.placa and mov.placa.propietario else 'No registrado' }}
+                                </td>
+
                                 <td>{{ mov.contenedor }}</td>
+
                                 <td>{{ mov.hora_salida.strftime('%d/%m/%Y %H:%M') }}</td>
+
                                 <td>
                                     {% if mov.hora_llegada %}
                                         {{ mov.hora_llegada.strftime('%d/%m/%Y %H:%M') }}
@@ -44,13 +57,15 @@
                                         <span class="text-muted">—</span>
                                     {% endif %}
                                 </td>
+
                                 <td>
                                     {% if mov.hora_llegada %}
                                         {{ mov.tiempo_total(formato=True) }}
                                     {% else %}
-                                        — 
+                                        —
                                     {% endif %}
                                 </td>
+
                                 <td>
                                     {% if mov.estado == 'finalizado' %}
                                         <span class="badge bg-success">Finalizado</span>
@@ -69,6 +84,56 @@
             </div>
         </div>
         {% endfor %}
+
+        {% if pagination and pagination.pages > 1 %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center flex-wrap">
+
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{{ url_for('movimiento_bp.listar_movimientos', page=pagination.prev_num) }}">
+                        Anterior
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Anterior</span>
+                </li>
+                {% endif %}
+
+                {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if p %}
+                        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                            <a class="page-link"
+                               href="{{ url_for('movimiento_bp.listar_movimientos', page=p) }}">
+                                {{ p }}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{{ url_for('movimiento_bp.listar_movimientos', page=pagination.next_num) }}">
+                        Siguiente
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Siguiente</span>
+                </li>
+                {% endif %}
+
+            </ul>
+        </nav>
+        {% endif %}
+
     {% else %}
     <div class="alert alert-info text-center mt-4">
         No hay operaciones finalizadas registradas aún.

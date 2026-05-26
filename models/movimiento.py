@@ -49,6 +49,17 @@ class MovimientoBarco(db.Model):
 
     alerta_orden_enviada = db.Column(db.Boolean, default=False)
 
+    cerrado_por_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("operacionbarco.usuarios.id"),
+        nullable=True
+    )
+
+    usuario_cierre = db.relationship(
+        "Usuario",
+        foreign_keys=[cerrado_por_user_id]
+    )
+
     placa = db.relationship("Placa", backref="movimientos")
 
     # ======================================================

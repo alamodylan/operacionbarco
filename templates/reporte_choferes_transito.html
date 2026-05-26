@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Reporte Choferes en Tránsito{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">⏱️ Choferes con más tiempo en tránsito</h2>
+            <p class="text-muted mb-0">Promedio de duración por chofer en viajes finalizados.</p>
+        </div>
+
+        <a href="{{ url_for('movimiento_bp.listar_movimientos') }}" class="btn btn-outline-secondary">
+            Volver
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            {% if registros %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Chofer</th>
+                            <th>Total viajes</th>
+                            <th>Promedio minutos</th>
+                            <th>Mayor duración</th>
+                            <th>Menor duración</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for r in registros %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td class="fw-semibold">{{ r.chofer }}</td>
+                            <td>{{ r.total_viajes }}</td>
+                            <td>
+                                <span class="badge bg-danger">
+                                    {{ r.promedio_minutos }} min
+                                </span>
+                            </td>
+                            <td>{{ r.mayor_duracion_minutos }} min</td>
+                            <td>{{ r.menor_duracion_minutos }} min</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if pages > 1 %}
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center flex-wrap">
+
+                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('movimiento_bp.reporte_choferes_transito', page=page-1) }}">
+                            Anterior
+                        </a>
+                    </li>
+
+                    {% for p in range(1, pages + 1) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('movimiento_bp.reporte_choferes_transito', page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                    {% endfor %}
+
+                    <li class="page-item {% if page >= pages %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('movimiento_bp.reporte_choferes_transito', page=page+1) }}">
+                            Siguiente
+                        </a>
+                    </li>
+
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="alert alert-info text-center mb-0">
+                No hay datos disponibles para este reporte.
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
