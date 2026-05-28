@@ -11,10 +11,14 @@ from config import Config
 from models.base import db
 from models.usuario import Usuario, bcrypt
 from models.movimiento import MovimientoBarco
-from models.notificacion import enviar_notificacion
 
 from models.tiempo import ConfigTiempos
 from models.operacion import Operacion
+
+from routes.notificacion_routes import (
+    guardar_ultima_alerta,
+    enviar_push_mismo_mensaje,
+)
 
 # Blueprints
 from routes.auth_routes import auth_bp
@@ -35,9 +39,6 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # =======================================================
-    # 🔒 CONFIGURACIÓN ESTABLE DE SESIÓN
-    # =======================================================
     app.config["SESSION_PERMANENT"] = True
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=1)
 
@@ -45,24 +46,15 @@ def create_app():
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = True
 
-    # =======================================================
-    # ✅ CONFIGURACIÓN DE CONEXIÓN BD MÁS ESTABLE EN RENDER
-    # =======================================================
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_pre_ping": True,
         "pool_recycle": 280,
         "pool_timeout": 30,
     }
 
-    # =======================================================
-    # INICIALIZAR EXTENSIONES
-    # =======================================================
     db.init_app(app)
     bcrypt.init_app(app)
 
-    # =======================================================
-    # LOGIN MANAGER
-    # =======================================================
     login_manager = LoginManager()
     login_manager.login_view = "auth_bp.login"
     login_manager.login_message = "Por favor, inicia sesión para continuar."
@@ -91,9 +83,6 @@ def create_app():
     def mantener_sesion():
         session.permanent = True
 
-    # =======================================================
-    # REGISTRO DE BLUEPRINTS
-    # =======================================================
     app.register_blueprint(auth_bp)
     app.register_blueprint(placa_bp)
     app.register_blueprint(operacion_bp)
@@ -102,24 +91,15 @@ def create_app():
     app.register_blueprint(usuario_bp)
     app.register_blueprint(tiempos_bp)
 
-    # =======================================================
-    # SERVICE WORKER
-    # =======================================================
     @app.route("/sw.js")
     def sw():
         return send_from_directory("static", "sw.js")
 
-    # =======================================================
-    # DASHBOARD
-    # =======================================================
     @app.route("/")
     @login_required
     def dashboard():
         return render_template("dashboard.html", user=current_user)
 
-    # =======================================================
-    # MANEJO DE ERRORES CON ROLLBACK
-    # =======================================================
     @app.errorhandler(404)
     def page_not_found(e):
         try:
@@ -138,9 +118,6 @@ def create_app():
 
         return render_template("500.html"), 500
 
-    # =======================================================
-    # CREAR TABLAS Y USUARIO ADMIN
-    # =======================================================
     with app.app_context():
         try:
             db.create_all()
@@ -170,9 +147,6 @@ def create_app():
     return app
 
 
-# ===========================================================
-# VERIFICACIÓN AUTOMÁTICA DE MOVIMIENTOS PROLONGADOS
-# ===========================================================
 def verificar_movimientos_periodicamente(app):
     """
     Revisa cada minuto los movimientos en ruta.
@@ -195,9 +169,6 @@ def verificar_movimientos_periodicamente(app):
                     ahora.strftime("%H:%M:%S %d/%m/%Y"),
                 )
 
-                # ===========================================
-                # CONFIGURACIÓN DE TIEMPOS
-                # ===========================================
                 cfg = (
                     ConfigTiempos.query
                     .order_by(ConfigTiempos.id.desc())
@@ -207,9 +178,6 @@ def verificar_movimientos_periodicamente(app):
                 min_import = cfg.min_import if cfg else 20
                 min_export = cfg.min_export if cfg else 30
 
-                # ===========================================
-                # MOVIMIENTOS ACTIVOS
-                # ===========================================
                 movimientos = (
                     MovimientoBarco.query
                     .filter_by(estado="en_ruta")
@@ -222,9 +190,6 @@ def verificar_movimientos_periodicamente(app):
                     time.sleep(60)
                     continue
 
-                # ===========================================
-                # EVITAR N+1 CONSULTAS DE OPERACIÓN
-                # ===========================================
                 operacion_ids = {
                     mov.operacion_id
                     for mov in movimientos
@@ -244,9 +209,6 @@ def verificar_movimientos_periodicamente(app):
                     for op in operaciones
                 }
 
-                # ===========================================
-                # REVISIÓN DE MOVIMIENTOS
-                # ===========================================
                 for mov in movimientos:
                     if not mov.hora_salida:
                         continue
@@ -273,9 +235,6 @@ def verificar_movimientos_periodicamente(app):
 
                     ultimo_envio = ultima_alerta.get(mov.id)
 
-                    # =======================================
-                    # ✅ SIGUE NOTIFICANDO CADA 4 MINUTOS
-                    # =======================================
                     if (
                         not ultimo_envio
                         or (ahora - ultimo_envio).total_seconds() >= 240
@@ -292,7 +251,26 @@ def verificar_movimientos_periodicamente(app):
                         )
 
                         try:
-                            enviar_notificacion(mensaje)
+                            alerta_id = guardar_ultima_alerta(
+                                f"🚨 Retraso: {tipo_label}",
+                                mensaje,
+                                tipo="emergencia",
+                                operacion_id=mov.operacion_id,
+                                movimiento_id=mov.id,
+                            )
+
+                            url_alerta = (
+                                f"/notificaciones/alerta/{alerta_id}"
+                                if alerta_id
+                                else "/notificaciones/alerta"
+                            )
+
+                            enviar_push_mismo_mensaje(
+                                mensaje,
+                                f"🚨 Retraso: {tipo_label}",
+                                url=url_alerta
+                            )
+
                             ultima_alerta[mov.id] = ahora
 
                         except Exception as e:
@@ -302,13 +280,10 @@ def verificar_movimientos_periodicamente(app):
                                 pass
 
                             app.logger.error(
-                                f"Error enviando notificación del movimiento "
+                                f"Error enviando push del movimiento "
                                 f"{mov.id}: {e}"
                             )
 
-                # ===========================================
-                # LIMPIAR ALERTAS DE MOVIMIENTOS CERRADOS
-                # ===========================================
                 ids_activos = {
                     mov.id
                     for mov in movimientos
@@ -338,9 +313,6 @@ def verificar_movimientos_periodicamente(app):
         time.sleep(60)
 
 
-# ===========================================================
-# EJECUCIÓN LOCAL
-# ===========================================================
 if __name__ == "__main__":
     app = create_app()
 

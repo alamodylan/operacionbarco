@@ -2,7 +2,6 @@
 from datetime import datetime
 import pytz
 from models.base import db
-from models.notificacion import enviar_notificacion
 
 # ✅ NUEVO (necesario para push + guardar alerta)
 import os
@@ -238,16 +237,31 @@ class MovimientoBarco(db.Model):
             )
 
             try:
-                # ✅ WhatsApp (igual que siempre)
-                enviar_notificacion(mensaje)
 
-                # ✅ NUEVO: Web Push + ver en grande
-                self._guardar_ultima_alerta("🟢 Alerta resuelta", mensaje)
-                self._enviar_push("🟢 Alerta resuelta", mensaje, url="/notificaciones/alerta")
+                # ✅ Guardar alerta
+                self._guardar_ultima_alerta(
+                    "🟢 Alerta resuelta",
+                    mensaje
+                )
+
+                # ✅ Push web
+                self._enviar_push(
+                    "🟢 Alerta resuelta",
+                    mensaje,
+                    url="/notificaciones/alerta"
+                )
 
             except Exception as e:
-                print(f"⚠️ Error al enviar notificación de cierre de emergencia: {e}")
 
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+
+                if has_app_context():
+                    current_app.logger.exception(
+                        f"Error enviando push de cierre: {e}"
+                    )
     def tiempo_total(self, formato=False):
         if self.hora_llegada:
             total_min = int((self.hora_llegada - self.hora_salida).total_seconds() / 60)
