@@ -175,24 +175,114 @@ def agregar_movimiento(operacion_id):
 
 
 # ------------------------------------------------------------
-# 🏁 5️⃣ Finalizar un movimiento (ENTRADA) — SIN NOTIFICACIÓN
+# 🏁 5️⃣ Finalizar un movimiento (ENTRADA)
 # ------------------------------------------------------------
 @operacion_bp.route("/finalizar_movimiento/<int:movimiento_id>", methods=["POST"])
 @login_required
 def finalizar_movimiento(movimiento_id):
+
     try:
+
         mov = MovimientoBarco.query.get_or_404(movimiento_id)
-        mov.finalizar()
+
+        if mov.estado == "finalizado":
+            flash(
+                "Ese movimiento ya fue finalizado.",
+                "warning"
+            )
+
+            return redirect(
+                url_for(
+                    "operacion_bp.detalle_operacion",
+                    operacion_id=mov.operacion_id
+                )
+            )
+
+        if not mov.hora_salida:
+
+            flash(
+                "El movimiento no tiene hora de salida.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "operacion_bp.detalle_operacion",
+                    operacion_id=mov.operacion_id
+                )
+            )
+
+        # ====================================================
+        # ⏱️ VALIDAR TIEMPO MÍNIMO
+        # ====================================================
+
+        hora_llegada = datetime.now(CR_TZ).replace(tzinfo=None)
+
+        minutos = (
+            hora_llegada - mov.hora_salida
+        ).total_seconds() / 60
+
+        if minutos < 8:
+
+            flash(
+                (
+                    "No se puede finalizar un viaje "
+                    "menor a 8 minutos."
+                ),
+                "warning"
+            )
+
+            return redirect(
+                url_for(
+                    "operacion_bp.detalle_operacion",
+                    operacion_id=mov.operacion_id
+                )
+            )
+
+        # ====================================================
+        # ✅ FINALIZAR MOVIMIENTO
+        # ====================================================
+
+        mov.hora_llegada = hora_llegada
+        mov.estado = "finalizado"
+        mov.cerrado_por_user_id = current_user.id
+
         db.session.commit()
 
-        # ❌ YA NO SE ENVÍA NOTIFICACIÓN AQUÍ
-        flash(f"Movimiento {mov.contenedor} finalizado correctamente.", "success")
-        return redirect(url_for("operacion_bp.detalle_operacion", operacion_id=mov.operacion_id))
+        flash(
+            (
+                f"Movimiento {mov.contenedor} "
+                f"finalizado correctamente."
+            ),
+            "success"
+        )
+
+        return redirect(
+            url_for(
+                "operacion_bp.detalle_operacion",
+                operacion_id=mov.operacion_id
+            )
+        )
 
     except Exception as e:
-        current_app.logger.exception(f"Error al finalizar movimiento: {e}")
-        flash("Error al finalizar movimiento.", "danger")
-        return redirect(url_for("operacion_bp.listar_operaciones"))
+
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        current_app.logger.exception(
+            f"Error al finalizar movimiento: {e}"
+        )
+
+        flash(
+            "Error al finalizar movimiento.",
+            "danger"
+        )
+
+        return redirect(
+            url_for("operacion_bp.listar_operaciones")
+        )
 
 
 # ------------------------------------------------------------
